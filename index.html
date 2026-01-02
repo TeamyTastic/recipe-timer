@@ -352,74 +352,74 @@
     const steps = [
       {
         time: 0,
-        title: "Prep the Vegetables",
-        detail: "Slice bell peppers into strips. Slice onion into half-moons. Mince garlic. Chop coriander.",
+        title: "🔪 Prep the Vegetables",
+        detail: "Slice bell peppers into strips 🌶️ Slice onion into half-moons 🧅 Mince garlic 🧄 Chop coriander 🌿",
         duration: 300
       },
       {
         time: 300,
-        title: "Prep the Cod",
-        detail: "Pat cod fillets dry with paper towels. Cut into 2-inch chunks. Season generously with fajita seasoning, salt, and a squeeze of lime.",
+        title: "🐟 Prep the Cod",
+        detail: "Pat cod fillets dry with paper towels. Cut into 2-inch chunks. Season generously with fajita seasoning 🌶️ salt 🧂 and a squeeze of lime 🍋",
         duration: 180
       },
       {
         time: 480,
-        title: "Heat the Pan",
-        detail: "Add 2 tbsp olive oil to a large skillet or cast iron pan. Heat over medium-high until shimmering.",
+        title: "🔥 Heat the Pan",
+        detail: "Add 2 tbsp olive oil 🫒 to a large skillet or cast iron pan. Heat over medium-high until shimmering ✨",
         duration: 120
       },
       {
         time: 600,
-        title: "Cook the Peppers & Onions",
-        detail: "Add peppers and onions to the hot pan. Cook for 5-6 minutes, stirring occasionally, until slightly charred and softened.",
+        title: "🍳 Cook the Peppers & Onions",
+        detail: "Add peppers and onions to the hot pan 🔥 Cook for 5-6 minutes, stirring occasionally, until slightly charred and softened 👨‍🍳",
         duration: 360
       },
       {
         time: 960,
-        title: "Add Garlic",
-        detail: "Push veggies to the side. Add minced garlic to the cleared space. Cook for 30 seconds until fragrant.",
+        title: "🧄 Add Garlic",
+        detail: "Push veggies to the side. Add minced garlic to the cleared space. Cook for 30 seconds until fragrant 👃✨",
         duration: 30
       },
       {
         time: 990,
-        title: "Remove Veggies",
-        detail: "Transfer peppers, onions, and garlic to a plate. Keep warm.",
+        title: "📤 Remove Veggies",
+        detail: "Transfer peppers, onions, and garlic to a plate 🍽️ Keep warm! 🔥",
         duration: 30
       },
       {
         time: 1020,
-        title: "Cook the Cod",
-        detail: "Add another splash of oil to the pan. Add cod chunks in a single layer. Don't move them! Let them cook undisturbed for 3 minutes.",
+        title: "🐟 Cook the Cod",
+        detail: "Add another splash of oil to the pan 🫒 Add cod chunks in a single layer. Don't move them! 🛑 Let them cook undisturbed for 3 minutes ⏱️",
         duration: 180
       },
       {
         time: 1200,
-        title: "Flip the Cod",
-        detail: "Gently flip each piece. Cook for another 2-3 minutes until fish is opaque and flakes easily.",
+        title: "🔄 Flip the Cod",
+        detail: "Gently flip each piece 🐟➡️🐟 Cook for another 2-3 minutes until fish is opaque and flakes easily ✨",
         duration: 150
       },
       {
         time: 1350,
-        title: "Combine Everything",
-        detail: "Return the peppers and onions to the pan. Gently toss everything together. Squeeze over remaining lime juice.",
+        title: "🤝 Combine Everything",
+        detail: "Return the peppers and onions to the pan 🍳 Gently toss everything together 🥄 Squeeze over remaining lime juice 🍋💦",
         duration: 60
       },
       {
         time: 1410,
-        title: "Warm the Tortillas",
-        detail: "Warm tortillas in microwave (30 sec wrapped in damp paper towel) or dry pan (15 sec each side).",
+        title: "🌮 Warm the Tortillas",
+        detail: "Warm tortillas in microwave (30 sec wrapped in damp paper towel 💧) or dry pan (15 sec each side) 🔥",
         duration: 90
       },
       {
         time: 1500,
-        title: "Set Up Toppings",
-        detail: "Slice avocado or prep guacamole. Put out sour cream, cheese, lime wedges, and fresh coriander.",
+        title: "🥑 Set Up Toppings",
+        detail: "Slice avocado or prep guacamole 🥑 Put out sour cream 🫙 cheese 🧀 lime wedges 🍋 and fresh coriander 🌿",
         duration: 120
       },
       {
         time: 1620,
-        title: "Serve!",
-        detail: "Transfer fajita mix to a serving dish. Scatter with fresh coriander. Serve with warm tortillas and all the toppings!",
+        title: "🎉 Serve!",
+        detail: "Transfer fajita mix to a serving dish 🍽️ Scatter with fresh coriander 🌿 Serve with warm tortillas and all the toppings! 🌮🎊",
         duration: 60
       }
     ];
@@ -430,19 +430,19 @@
     let intervalId = null;
 
     function startCooking() {
-      const saved = storage.get('codFajitasStartTime');
-      const savedPaused = storage.get('codFajitasPausedTime');
+      const saved = storage.get('recipeTimerStartTime');
+      const savedPaused = storage.get('recipeTimerPausedTime');
 
       if (saved && !savedPaused) {
         startTime = parseInt(saved);
       } else if (saved && savedPaused) {
         const pauseDuration = Date.now() - parseInt(savedPaused);
         startTime = parseInt(saved) + pauseDuration;
-        storage.set('codFajitasStartTime', startTime);
-        storage.remove('codFajitasPausedTime');
+        storage.set('recipeTimerStartTime', startTime);
+        storage.remove('recipeTimerPausedTime');
       } else {
         startTime = Date.now();
-        storage.set('codFajitasStartTime', startTime);
+        storage.set('recipeTimerStartTime', startTime);
       }
 
       document.getElementById('start-section').style.display = 'none';
@@ -461,15 +461,15 @@
 
       if (isPaused) {
         pausedTime = Date.now();
-        storage.set('codFajitasPausedTime', pausedTime);
+        storage.set('recipeTimerPausedTime', pausedTime);
         btn.textContent = '▶️ Resume';
         banner.style.display = 'block';
         clearInterval(intervalId);
       } else {
         const pauseDuration = Date.now() - pausedTime;
         startTime += pauseDuration;
-        storage.set('codFajitasStartTime', startTime);
-        storage.remove('codFajitasPausedTime');
+        storage.set('recipeTimerStartTime', startTime);
+        storage.remove('recipeTimerPausedTime');
         pausedTime = null;
         btn.textContent = '⏸️ Pause';
         banner.style.display = 'none';
@@ -479,8 +479,8 @@
 
     function resetTimer() {
       if (confirm('Reset the timer? This will start over from the beginning.')) {
-        storage.remove('codFajitasStartTime');
-        storage.remove('codFajitasPausedTime');
+        storage.remove('recipeTimerStartTime');
+        storage.remove('recipeTimerPausedTime');
         clearInterval(intervalId);
         location.reload();
       }
@@ -576,13 +576,13 @@
 
     // Check for saved state on load
     window.onload = function() {
-      const saved = storage.get('codFajitasStartTime');
+      const saved = storage.get('recipeTimerStartTime');
       if (saved) {
         if (confirm('Resume previous cooking session?')) {
           startCooking();
         } else {
-          storage.remove('codFajitasStartTime');
-          storage.remove('codFajitasPausedTime');
+          storage.remove('recipeTimerStartTime');
+          storage.remove('recipeTimerPausedTime');
         }
       }
     };
