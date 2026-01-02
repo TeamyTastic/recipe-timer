@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>🐟 Cod Fajitas Timer</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #eee;
+      min-height: 100vh;
+      padding: 20px;
+      padding-bottom: 100px;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.8em;
+      margin-bottom: 10px;
+      color: #ff6b35;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #888;
+      margin-bottom: 30px;
+      font-size: 0.9em;
+    }
+
+    #start-section {
+      text-align: center;
+      padding: 60px 20px;
+    }
+
+    #start-btn {
+      background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+      color: white;
+      border: none;
+      padding: 20px 50px;
+      font-size: 1.4em;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(255, 107, 53, 0.4);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    #start-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 6px 20px rgba(255, 107, 53, 0.6);
+    }
+
+    #active-section {
+      display: none;
+    }
+
+    .elapsed-time {
+      text-align: center;
+      font-size: 2.5em;
+      font-weight: bold;
+      color: #ff6b35;
+      margin-bottom: 20px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .section-title {
+      font-size: 0.85em;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #ff6b35;
+      margin-bottom: 15px;
+      padding-bottom: 5px;
+      border-bottom: 1px solid #333;
+    }
+
+    .current-step {
+      background: linear-gradient(135deg, #2d4a3e 0%, #1e3a2f 100%);
+      border: 2px solid #4ade80;
+      border-radius: 15px;
+      padding: 25px;
+      margin-bottom: 30px;
+      box-shadow: 0 0 20px rgba(74, 222, 128, 0.2);
+    }
+
+    .current-step h2 {
+      font-size: 1.4em;
+      margin-bottom: 10px;
+      color: #4ade80;
+    }
+
+    .current-step p {
+      color: #ccc;
+      line-height: 1.6;
+    }
+
+    .current-step .duration {
+      margin-top: 15px;
+      font-size: 1.1em;
+      color: #4ade80;
+    }
+
+    .upcoming-section {
+      margin-bottom: 30px;
+    }
+
+    .upcoming-step {
+      background: #252545;
+      border-radius: 12px;
+      padding: 15px 20px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-left: 4px solid #ff6b35;
+    }
+
+    .upcoming-step.soon {
+      border-left-color: #fbbf24;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    .upcoming-step .title {
+      font-weight: 600;
+      margin-bottom: 3px;
+    }
+
+    .upcoming-step .detail {
+      font-size: 0.85em;
+      color: #888;
+    }
+
+    .upcoming-step .countdown {
+      font-size: 1.2em;
+      font-weight: bold;
+      color: #ff6b35;
+      font-variant-numeric: tabular-nums;
+      min-width: 60px;
+      text-align: right;
+    }
+
+    .timeline-section {
+      margin-top: 40px;
+    }
+
+    .timeline-step {
+      display: flex;
+      padding: 12px 0;
+      border-bottom: 1px solid #333;
+      align-items: flex-start;
+    }
+
+    .timeline-step.completed {
+      opacity: 0.5;
+    }
+
+    .timeline-step.completed .timeline-title {
+      text-decoration: line-through;
+    }
+
+    .timeline-step.active {
+      background: rgba(74, 222, 128, 0.1);
+      margin: 0 -20px;
+      padding: 12px 20px;
+      border-radius: 8px;
+    }
+
+    .timeline-time {
+      min-width: 70px;
+      font-size: 0.85em;
+      color: #888;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .timeline-content {
+      flex: 1;
+    }
+
+    .timeline-title {
+      font-weight: 600;
+      margin-bottom: 3px;
+    }
+
+    .timeline-detail {
+      font-size: 0.85em;
+      color: #888;
+    }
+
+    .done-section {
+      display: none;
+      text-align: center;
+      padding: 60px 20px;
+    }
+
+    .done-section h2 {
+      font-size: 2em;
+      margin-bottom: 20px;
+    }
+
+    .done-section p {
+      color: #888;
+      font-size: 1.1em;
+    }
+
+    .controls {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #1a1a2e;
+      padding: 15px 20px;
+      display: flex;
+      gap: 10px;
+      border-top: 1px solid #333;
+    }
+
+    .controls button {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1em;
+      cursor: pointer;
+    }
+
+    #pause-btn {
+      background: #fbbf24;
+      color: #000;
+    }
+
+    #reset-btn {
+      background: #ef4444;
+      color: white;
+    }
+
+    .paused-banner {
+      display: none;
+      background: #fbbf24;
+      color: #000;
+      text-align: center;
+      padding: 10px;
+      font-weight: bold;
+      margin-bottom: 20px;
+      border-radius: 8px;
+    }
+
+    .ingredient-checklist {
+      background: #252545;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 30px;
+    }
+
+    .ingredient-checklist h3 {
+      margin-bottom: 15px;
+      color: #ff6b35;
+    }
+
+    .ingredient-checklist ul {
+      list-style: none;
+      columns: 2;
+      gap: 20px;
+    }
+
+    .ingredient-checklist li {
+      padding: 5px 0;
+      font-size: 0.9em;
+    }
+  </style>
+</head>
+<body>
+  <h1>🐟 Cod Fajitas</h1>
+  <p class="subtitle">~30 minutes • Serves 2-3</p>
+
+  <div id="start-section">
+    <div class="ingredient-checklist">
+      <h3>📝 Ingredients Check</h3>
+      <ul>
+        <li>🐟 400g cod fillets</li>
+        <li>🌶️ 2 bell peppers</li>
+        <li>🧅 1 large onion</li>
+        <li>🧄 2 cloves garlic</li>
+        <li>🌮 Tortillas (6-8)</li>
+        <li>🍋 1 lime</li>
+        <li>🥑 Avocado/guac</li>
+        <li>🫙 Sour cream</li>
+        <li>🧀 Cheese (optional)</li>
+        <li>🫒 Olive oil</li>
+        <li>🌿 Fresh coriander</li>
+        <li>🧂 Fajita seasoning</li>
+      </ul>
+    </div>
+    <button id="start-btn" onclick="startCooking()">🔥 Start Cooking</button>
+  </div>
+
+  <div id="active-section">
+    <div class="paused-banner" id="paused-banner">⏸️ PAUSED</div>
+    <div class="elapsed-time" id="elapsed-time">00:00</div>
+
+    <div class="section-title">🍳 Do This Now</div>
+    <div class="current-step" id="current-step">
+      <h2>Loading...</h2>
+      <p></p>
+    </div>
+
+    <div class="upcoming-section">
+      <div class="section-title">⏰ Coming Up Next</div>
+      <div id="upcoming-steps"></div>
+    </div>
+
+    <div class="timeline-section">
+      <div class="section-title">📋 Full Timeline</div>
+      <div id="timeline"></div>
+    </div>
+  </div>
+
+  <div class="done-section" id="done-section">
+    <h2>🎉 Buen Provecho!</h2>
+    <p>Your cod fajitas are ready to serve!</p>
+    <p style="margin-top: 20px;">🌮 Load up those tortillas and enjoy!</p>
+  </div>
+
+  <div class="controls" id="controls" style="display: none;">
+    <button id="pause-btn" onclick="togglePause()">⏸️ Pause</button>
+    <button id="reset-btn" onclick="resetTimer()">🔄 Reset</button>
+  </div>
+
+  <script>
+    // Safe localStorage wrapper (file:// URLs block localStorage on iOS Safari)
+    const storage = {
+      get: function(key) {
+        try { return localStorage.getItem(key); } catch(e) { return null; }
+      },
+      set: function(key, value) {
+        try { localStorage.setItem(key, value); } catch(e) {}
+      },
+      remove: function(key) {
+        try { localStorage.removeItem(key); } catch(e) {}
+      }
+    };
+
+    const steps = [
+      {
+        time: 0,
+        title: "Prep the Vegetables",
+        detail: "Slice bell peppers into strips. Slice onion into half-moons. Mince garlic. Chop coriander.",
+        duration: 300
+      },
+      {
+        time: 300,
+        title: "Prep the Cod",
+        detail: "Pat cod fillets dry with paper towels. Cut into 2-inch chunks. Season generously with fajita seasoning, salt, and a squeeze of lime.",
+        duration: 180
+      },
+      {
+        time: 480,
+        title: "Heat the Pan",
+        detail: "Add 2 tbsp olive oil to a large skillet or cast iron pan. Heat over medium-high until shimmering.",
+        duration: 120
+      },
+      {
+        time: 600,
+        title: "Cook the Peppers & Onions",
+        detail: "Add peppers and onions to the hot pan. Cook for 5-6 minutes, stirring occasionally, until slightly charred and softened.",
+        duration: 360
+      },
+      {
+        time: 960,
+        title: "Add Garlic",
+        detail: "Push veggies to the side. Add minced garlic to the cleared space. Cook for 30 seconds until fragrant.",
+        duration: 30
+      },
+      {
+        time: 990,
+        title: "Remove Veggies",
+        detail: "Transfer peppers, onions, and garlic to a plate. Keep warm.",
+        duration: 30
+      },
+      {
+        time: 1020,
+        title: "Cook the Cod",
+        detail: "Add another splash of oil to the pan. Add cod chunks in a single layer. Don't move them! Let them cook undisturbed for 3 minutes.",
+        duration: 180
+      },
+      {
+        time: 1200,
+        title: "Flip the Cod",
+        detail: "Gently flip each piece. Cook for another 2-3 minutes until fish is opaque and flakes easily.",
+        duration: 150
+      },
+      {
+        time: 1350,
+        title: "Combine Everything",
+        detail: "Return the peppers and onions to the pan. Gently toss everything together. Squeeze over remaining lime juice.",
+        duration: 60
+      },
+      {
+        time: 1410,
+        title: "Warm the Tortillas",
+        detail: "Warm tortillas in microwave (30 sec wrapped in damp paper towel) or dry pan (15 sec each side).",
+        duration: 90
+      },
+      {
+        time: 1500,
+        title: "Set Up Toppings",
+        detail: "Slice avocado or prep guacamole. Put out sour cream, cheese, lime wedges, and fresh coriander.",
+        duration: 120
+      },
+      {
+        time: 1620,
+        title: "Serve!",
+        detail: "Transfer fajita mix to a serving dish. Scatter with fresh coriander. Serve with warm tortillas and all the toppings!",
+        duration: 60
+      }
+    ];
+
+    let startTime = null;
+    let pausedTime = null;
+    let isPaused = false;
+    let intervalId = null;
+
+    function startCooking() {
+      const saved = storage.get('codFajitasStartTime');
+      const savedPaused = storage.get('codFajitasPausedTime');
+
+      if (saved && !savedPaused) {
+        startTime = parseInt(saved);
+      } else if (saved && savedPaused) {
+        const pauseDuration = Date.now() - parseInt(savedPaused);
+        startTime = parseInt(saved) + pauseDuration;
+        storage.set('codFajitasStartTime', startTime);
+        storage.remove('codFajitasPausedTime');
+      } else {
+        startTime = Date.now();
+        storage.set('codFajitasStartTime', startTime);
+      }
+
+      document.getElementById('start-section').style.display = 'none';
+      document.getElementById('active-section').style.display = 'block';
+      document.getElementById('controls').style.display = 'flex';
+
+      renderTimeline();
+      updateDisplay();
+      intervalId = setInterval(updateDisplay, 1000);
+    }
+
+    function togglePause() {
+      isPaused = !isPaused;
+      const btn = document.getElementById('pause-btn');
+      const banner = document.getElementById('paused-banner');
+
+      if (isPaused) {
+        pausedTime = Date.now();
+        storage.set('codFajitasPausedTime', pausedTime);
+        btn.textContent = '▶️ Resume';
+        banner.style.display = 'block';
+        clearInterval(intervalId);
+      } else {
+        const pauseDuration = Date.now() - pausedTime;
+        startTime += pauseDuration;
+        storage.set('codFajitasStartTime', startTime);
+        storage.remove('codFajitasPausedTime');
+        pausedTime = null;
+        btn.textContent = '⏸️ Pause';
+        banner.style.display = 'none';
+        intervalId = setInterval(updateDisplay, 1000);
+      }
+    }
+
+    function resetTimer() {
+      if (confirm('Reset the timer? This will start over from the beginning.')) {
+        storage.remove('codFajitasStartTime');
+        storage.remove('codFajitasPausedTime');
+        clearInterval(intervalId);
+        location.reload();
+      }
+    }
+
+    function formatTime(seconds) {
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    function formatClockTime(seconds) {
+      const now = new Date(startTime + seconds * 1000);
+      return now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function getElapsedSeconds() {
+      return Math.floor((Date.now() - startTime) / 1000);
+    }
+
+    function getCurrentStepIndex(elapsed) {
+      for (let i = steps.length - 1; i >= 0; i--) {
+        if (elapsed >= steps[i].time) return i;
+      }
+      return 0;
+    }
+
+    function updateDisplay() {
+      const elapsed = getElapsedSeconds();
+      const totalTime = steps[steps.length - 1].time + steps[steps.length - 1].duration;
+
+      document.getElementById('elapsed-time').textContent = formatTime(elapsed);
+
+      if (elapsed >= totalTime) {
+        document.getElementById('active-section').style.display = 'none';
+        document.getElementById('done-section').style.display = 'block';
+        document.getElementById('controls').style.display = 'none';
+        clearInterval(intervalId);
+        return;
+      }
+
+      const currentIndex = getCurrentStepIndex(elapsed);
+      const current = steps[currentIndex];
+
+      const currentEl = document.getElementById('current-step');
+      const timeInStep = elapsed - current.time;
+      const remaining = current.duration - timeInStep;
+
+      currentEl.innerHTML = `
+        <h2>${current.title}</h2>
+        <p>${current.detail}</p>
+        ${remaining > 0 ? `<div class="duration">⏱️ ${formatTime(Math.max(0, remaining))} remaining</div>` : ''}
+      `;
+
+      // Upcoming steps
+      const upcomingEl = document.getElementById('upcoming-steps');
+      const upcoming = steps.slice(currentIndex + 1, currentIndex + 4);
+
+      upcomingEl.innerHTML = upcoming.map(step => {
+        const countdown = step.time - elapsed;
+        const isSoon = countdown < 120;
+        return `
+          <div class="upcoming-step ${isSoon ? 'soon' : ''}">
+            <div>
+              <div class="title">${step.title}</div>
+              <div class="detail">${step.detail.substring(0, 50)}...</div>
+            </div>
+            <div class="countdown">${formatTime(countdown)}</div>
+          </div>
+        `;
+      }).join('');
+
+      // Update timeline
+      document.querySelectorAll('.timeline-step').forEach((el, i) => {
+        el.classList.remove('completed', 'active');
+        if (i < currentIndex) el.classList.add('completed');
+        if (i === currentIndex) el.classList.add('active');
+      });
+    }
+
+    function renderTimeline() {
+      const timelineEl = document.getElementById('timeline');
+      timelineEl.innerHTML = steps.map((step, i) => `
+        <div class="timeline-step" data-index="${i}">
+          <div class="timeline-time">${formatClockTime(step.time)}</div>
+          <div class="timeline-content">
+            <div class="timeline-title">${step.title}</div>
+            <div class="timeline-detail">${step.detail}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Check for saved state on load
+    window.onload = function() {
+      const saved = storage.get('codFajitasStartTime');
+      if (saved) {
+        if (confirm('Resume previous cooking session?')) {
+          startCooking();
+        } else {
+          storage.remove('codFajitasStartTime');
+          storage.remove('codFajitasPausedTime');
+        }
+      }
+    };
+  </script>
+</body>
+</html>
