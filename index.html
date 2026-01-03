@@ -1322,11 +1322,21 @@ Rules:
         }
         jsonStr = jsonStr.slice(startIdx);
 
-        // Repair truncated JSON (common with LLM responses)
+        // Repair malformed JSON (common with LLM responses)
         function repairJson(str) {
           // Remove trailing incomplete strings (cut off mid-string)
           str = str.replace(/,\s*"[^"]*$/, '');  // Remove trailing incomplete key
           str = str.replace(/:\s*"[^"]*$/, ': ""');  // Complete incomplete string value
+
+          // Fix trailing commas before ] or }
+          str = str.replace(/,\s*([\]}])/g, '$1');
+
+          // Quote unquoted property names (e.g., {title: "x"} → {"title": "x"})
+          str = str.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":');
+
+          // Convert single quotes to double quotes (outside of double-quoted strings)
+          // Simple approach: replace 'value' with "value" for string values
+          str = str.replace(/:\s*'([^']*)'/g, ': "$1"');
 
           // Count brackets and braces
           let braces = 0, brackets = 0;
