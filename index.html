@@ -4,369 +4,863 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Recipe Timer Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --azulejo-blue: #1e4d8c;
+      --azulejo-dark: #153764;
+      --azulejo-light: #4a7cc2;
+      --cream: #faf8f5;
+      --cream-dark: #f0ebe3;
+      --terracotta: #c45d3e;
+      --terracotta-light: #e8826a;
+      --success-green: #2d6a4f;
+      --text-dark: #1a1a2e;
+      --text-muted: #5a6178;
+    }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-      color: #eee;
+      font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--cream);
+      color: var(--text-dark);
       min-height: 100vh;
       padding: 20px;
-      padding-bottom: 100px;
+      padding-bottom: 120px;
+      position: relative;
     }
 
-    h1 { text-align: center; font-size: 1.8em; margin-bottom: 10px; color: #ff6b35; }
-    .subtitle { text-align: center; color: #888; margin-bottom: 30px; font-size: 0.9em; }
+    /* Azulejo tile pattern background */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      opacity: 0.04;
+      pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0L60 30L30 60L0 30L30 0z' fill='none' stroke='%231e4d8c' stroke-width='1'/%3E%3Ccircle cx='30' cy='30' r='8' fill='none' stroke='%231e4d8c' stroke-width='1'/%3E%3Cpath d='M30 22L38 30L30 38L22 30z' fill='none' stroke='%231e4d8c' stroke-width='1'/%3E%3C/svg%3E");
+      background-size: 60px 60px;
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+      position: relative;
+    }
+
+    .header::before,
+    .header::after {
+      content: '◆';
+      color: var(--azulejo-blue);
+      font-size: 0.8em;
+      opacity: 0.6;
+    }
+
+    h1 {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 2.2em;
+      font-weight: 700;
+      color: var(--azulejo-blue);
+      margin: 8px 0;
+      letter-spacing: 0.02em;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 0.95em;
+      font-weight: 400;
+    }
+
+    /* Card styling with tile border effect */
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow:
+        0 2px 8px rgba(30, 77, 140, 0.08),
+        0 8px 24px rgba(30, 77, 140, 0.04);
+      border: 2px solid transparent;
+      background-image: linear-gradient(white, white),
+                        linear-gradient(135deg, var(--azulejo-blue) 0%, var(--azulejo-light) 100%);
+      background-origin: border-box;
+      background-clip: padding-box, border-box;
+      position: relative;
+      animation: fadeInUp 0.4s ease-out;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Decorative corner accents */
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      right: 8px;
+      bottom: 8px;
+      border: 1px solid rgba(30, 77, 140, 0.08);
+      border-radius: 10px;
+      pointer-events: none;
+    }
 
     /* Setup Section */
-    #setup-section, #unlock-section { max-width: 500px; margin: 0 auto; }
+    #setup-section, #unlock-section {
+      max-width: 500px;
+      margin: 0 auto;
+    }
 
     .input-group { margin-bottom: 20px; }
-    .input-group label { display: block; margin-bottom: 8px; color: #ff6b35; font-weight: 600; }
+
+    .input-group label {
+      display: block;
+      margin-bottom: 10px;
+      color: var(--azulejo-dark);
+      font-weight: 600;
+      font-size: 0.95em;
+      letter-spacing: 0.02em;
+    }
+
     .input-group input, .input-group textarea {
       width: 100%;
-      padding: 15px;
-      border: 2px solid #333;
+      padding: 16px 18px;
+      border: 2px solid var(--cream-dark);
       border-radius: 12px;
-      background: #252545;
-      color: #eee;
+      background: var(--cream);
+      color: var(--text-dark);
       font-size: 1em;
+      font-family: inherit;
+      transition: all 0.2s ease;
     }
-    .input-group textarea { min-height: 100px; resize: vertical; }
+
+    .input-group textarea {
+      min-height: 110px;
+      resize: vertical;
+      line-height: 1.5;
+    }
+
     .input-group input:focus, .input-group textarea:focus {
       outline: none;
-      border-color: #ff6b35;
+      border-color: var(--azulejo-blue);
+      background: white;
+      box-shadow: 0 0 0 4px rgba(30, 77, 140, 0.1);
     }
-    .input-group small { display: block; margin-top: 8px; color: #888; font-size: 0.85em; }
-    .input-group small a { color: #ff6b35; }
 
+    .input-group input::placeholder,
+    .input-group textarea::placeholder {
+      color: var(--text-muted);
+      opacity: 0.7;
+    }
+
+    .input-group small {
+      display: block;
+      margin-top: 10px;
+      color: var(--text-muted);
+      font-size: 0.85em;
+      line-height: 1.5;
+    }
+
+    .input-group small a {
+      color: var(--azulejo-blue);
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .input-group small a:hover {
+      text-decoration: underline;
+    }
+
+    /* Info box with tile pattern accent */
     .info-box {
-      background: rgba(99, 102, 241, 0.1);
-      border: 1px solid #6366f1;
-      border-radius: 8px;
-      padding: 12px;
-      margin-bottom: 20px;
+      background: linear-gradient(135deg, rgba(30, 77, 140, 0.06) 0%, rgba(74, 124, 194, 0.04) 100%);
+      border: 1px solid rgba(30, 77, 140, 0.15);
+      border-radius: 12px;
+      padding: 16px 18px;
+      margin-bottom: 24px;
       font-size: 0.9em;
-      color: #a5b4fc;
+      color: var(--azulejo-dark);
+      line-height: 1.5;
+      position: relative;
+      overflow: hidden;
     }
 
+    .info-box::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      background: linear-gradient(180deg, var(--azulejo-blue), var(--azulejo-light));
+    }
+
+    /* Primary button with tile-inspired gradient */
     .btn-primary {
       width: 100%;
-      background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+      background: linear-gradient(135deg, var(--azulejo-blue) 0%, var(--azulejo-dark) 100%);
       color: white;
       border: none;
-      padding: 18px;
-      font-size: 1.2em;
+      padding: 18px 24px;
+      font-size: 1.1em;
+      font-weight: 600;
+      font-family: inherit;
       border-radius: 12px;
       cursor: pointer;
-      box-shadow: 0 4px 15px rgba(255, 107, 53, 0.4);
+      box-shadow:
+        0 4px 12px rgba(30, 77, 140, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      transition: all 0.25s ease;
+      position: relative;
+      overflow: hidden;
     }
-    .btn-primary:hover { transform: scale(1.02); }
-    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
-    /* Input Mode Tabs */
+    .btn-primary::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+      transition: left 0.5s ease;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow:
+        0 6px 20px rgba(30, 77, 140, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    }
+
+    .btn-primary:hover::before {
+      left: 100%;
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Input Mode Tabs - tile-inspired */
     .input-tabs {
       display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
+      gap: 12px;
+      margin-bottom: 24px;
     }
+
     .input-tab {
       flex: 1;
-      padding: 12px;
-      background: #252545;
-      border: 2px solid #333;
-      border-radius: 10px;
-      color: #888;
+      padding: 14px 16px;
+      background: white;
+      border: 2px solid var(--cream-dark);
+      border-radius: 12px;
+      color: var(--text-muted);
       cursor: pointer;
       text-align: center;
       font-size: 0.95em;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      position: relative;
     }
+
+    .input-tab:hover {
+      border-color: var(--azulejo-light);
+      color: var(--azulejo-blue);
+    }
+
     .input-tab.active {
-      border-color: #ff6b35;
-      color: #ff6b35;
-      background: rgba(255, 107, 53, 0.1);
+      border-color: var(--azulejo-blue);
+      color: var(--azulejo-blue);
+      background: linear-gradient(135deg, rgba(30, 77, 140, 0.05) 0%, rgba(74, 124, 194, 0.03) 100%);
+      box-shadow: 0 2px 8px rgba(30, 77, 140, 0.1);
+    }
+
+    .input-tab.active::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 20%;
+      right: 20%;
+      height: 3px;
+      background: var(--azulejo-blue);
+      border-radius: 3px 3px 0 0;
     }
 
     /* Photo Input */
-    .photo-input {
-      display: none;
-    }
+    .photo-input { display: none; }
     .photo-input.active { display: block; }
     .text-input.active { display: block; }
     .text-input { display: none; }
 
     .photo-buttons {
       display: flex;
-      gap: 10px;
-      margin-bottom: 15px;
+      gap: 12px;
+      margin-bottom: 16px;
     }
+
     .photo-btn {
       flex: 1;
-      padding: 15px;
-      background: #252545;
-      border: 2px dashed #444;
+      padding: 20px 16px;
+      background: white;
+      border: 2px dashed var(--azulejo-light);
       border-radius: 12px;
-      color: #aaa;
+      color: var(--azulejo-blue);
       cursor: pointer;
       text-align: center;
+      font-weight: 500;
+      transition: all 0.2s ease;
     }
-    .photo-btn:hover { border-color: #ff6b35; color: #ff6b35; }
+
+    .photo-btn:hover {
+      border-style: solid;
+      background: rgba(30, 77, 140, 0.03);
+      transform: translateY(-2px);
+    }
 
     .photo-preview {
       display: none;
-      margin-bottom: 15px;
-    }
-    .photo-preview img {
-      max-width: 100%;
-      border-radius: 12px;
-      border: 2px solid #4ade80;
-    }
-    .photo-preview .remove-btn {
-      display: block;
-      margin-top: 10px;
-      padding: 8px;
-      background: #ef4444;
-      border: none;
-      border-radius: 8px;
-      color: white;
-      cursor: pointer;
-      font-size: 0.9em;
+      margin-bottom: 16px;
+      animation: fadeInUp 0.3s ease-out;
     }
 
-    .cached-recipes { margin-top: 30px; }
-    .cached-recipes h3 { color: #888; font-size: 0.9em; margin-bottom: 10px; }
+    .photo-preview img {
+      width: 100%;
+      border-radius: 12px;
+      border: 3px solid var(--success-green);
+      box-shadow: 0 4px 16px rgba(45, 106, 79, 0.2);
+    }
+
+    .photo-preview .remove-btn {
+      display: block;
+      width: 100%;
+      margin-top: 12px;
+      padding: 12px;
+      background: white;
+      border: 2px solid var(--terracotta);
+      border-radius: 10px;
+      color: var(--terracotta);
+      cursor: pointer;
+      font-size: 0.95em;
+      font-weight: 500;
+      font-family: inherit;
+      transition: all 0.2s ease;
+    }
+
+    .photo-preview .remove-btn:hover {
+      background: var(--terracotta);
+      color: white;
+    }
+
+    /* Cached Recipes */
+    .cached-recipes { margin-top: 32px; }
+
+    .cached-recipes h3 {
+      color: var(--text-muted);
+      font-size: 0.85em;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .cached-recipes h3::before {
+      content: '◇';
+      color: var(--azulejo-blue);
+    }
+
     .cached-item {
-      background: #252545;
-      padding: 12px 15px;
-      border-radius: 8px;
-      margin-bottom: 8px;
+      background: white;
+      padding: 16px 18px;
+      border-radius: 12px;
+      margin-bottom: 10px;
       cursor: pointer;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      border: 1px solid var(--cream-dark);
+      transition: all 0.2s ease;
     }
-    .cached-item:hover { background: #2d2d5a; }
-    .cached-item .title { font-weight: 600; }
-    .cached-item .meta { color: #888; font-size: 0.85em; }
 
-    /* Loading */
-    #loading-section { display: none; text-align: center; padding: 60px 20px; }
-    .spinner {
-      width: 50px; height: 50px;
-      border: 4px solid #333;
-      border-top-color: #ff6b35;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 20px;
+    .cached-item:hover {
+      border-color: var(--azulejo-light);
+      box-shadow: 0 4px 12px rgba(30, 77, 140, 0.08);
+      transform: translateX(4px);
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .cached-item .title {
+      font-weight: 600;
+      color: var(--azulejo-dark);
+    }
+
+    .cached-item .meta {
+      color: var(--text-muted);
+      font-size: 0.85em;
+      margin-top: 4px;
+    }
+
+    .cached-item .arrow {
+      color: var(--azulejo-blue);
+      font-size: 1.2em;
+      opacity: 0.5;
+      transition: all 0.2s ease;
+    }
+
+    .cached-item:hover .arrow {
+      opacity: 1;
+      transform: translateX(4px);
+    }
+
+    /* Loading Section */
+    #loading-section {
+      display: none;
+      text-align: center;
+      padding: 80px 20px;
+    }
+
+    .spinner {
+      width: 56px;
+      height: 56px;
+      border: 3px solid var(--cream-dark);
+      border-top-color: var(--azulejo-blue);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 24px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    #loading-section p {
+      color: var(--text-muted);
+      font-size: 1.05em;
+    }
 
     /* Timer Section */
-    #timer-section { display: none; }
+    #timer-section {
+      display: none;
+      max-width: 600px;
+      margin: 0 auto;
+    }
 
     .elapsed-time {
       text-align: center;
-      font-size: 2.5em;
-      font-weight: bold;
-      color: #ff6b35;
-      margin-bottom: 20px;
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 3.5em;
+      font-weight: 700;
+      color: var(--azulejo-blue);
+      margin-bottom: 24px;
       font-variant-numeric: tabular-nums;
+      letter-spacing: 0.02em;
     }
 
     .section-title {
-      font-size: 0.85em;
+      font-size: 0.8em;
       text-transform: uppercase;
-      letter-spacing: 2px;
-      color: #ff6b35;
-      margin-bottom: 15px;
-      padding-bottom: 5px;
-      border-bottom: 1px solid #333;
+      letter-spacing: 0.15em;
+      color: var(--azulejo-blue);
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid var(--cream-dark);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
 
+    .section-title::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: var(--azulejo-blue);
+      transform: rotate(45deg);
+    }
+
+    /* Current Step - emphasized card */
     .current-step {
-      background: linear-gradient(135deg, #2d4a3e 0%, #1e3a2f 100%);
-      border: 2px solid #4ade80;
-      border-radius: 15px;
-      padding: 25px;
-      margin-bottom: 30px;
-      box-shadow: 0 0 20px rgba(74, 222, 128, 0.2);
+      background: linear-gradient(135deg, var(--success-green) 0%, #1e5a3f 100%);
+      border-radius: 16px;
+      padding: 28px;
+      margin-bottom: 32px;
+      color: white;
+      box-shadow:
+        0 8px 24px rgba(45, 106, 79, 0.25),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      position: relative;
+      overflow: hidden;
     }
-    .current-step h2 { font-size: 1.4em; margin-bottom: 10px; color: #4ade80; }
-    .current-step p { color: #ccc; line-height: 1.6; }
-    .current-step .duration { margin-top: 15px; font-size: 1.1em; color: #4ade80; }
 
+    .current-step::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 0L40 20L20 40L0 20L20 0z' fill='none' stroke='rgba(255,255,255,0.08)' stroke-width='1'/%3E%3C/svg%3E");
+      pointer-events: none;
+    }
+
+    .current-step h2 {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 1.6em;
+      font-weight: 700;
+      margin-bottom: 12px;
+      position: relative;
+    }
+
+    .current-step p {
+      opacity: 0.95;
+      line-height: 1.6;
+      font-size: 1.05em;
+      position: relative;
+    }
+
+    .current-step .duration {
+      margin-top: 18px;
+      font-size: 1.15em;
+      font-weight: 600;
+      opacity: 0.95;
+      font-variant-numeric: tabular-nums;
+      position: relative;
+    }
+
+    /* Upcoming Steps */
     .upcoming-step {
-      background: #252545;
+      background: white;
       border-radius: 12px;
-      padding: 15px 20px;
-      margin-bottom: 10px;
+      padding: 18px 20px;
+      margin-bottom: 12px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-left: 4px solid #ff6b35;
+      border-left: 4px solid var(--azulejo-blue);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      transition: all 0.3s ease;
     }
-    .upcoming-step.soon { border-left-color: #fbbf24; animation: pulse 2s infinite; }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
-    .upcoming-step .title { font-weight: 600; margin-bottom: 3px; }
-    .upcoming-step .detail { font-size: 0.85em; color: #888; }
+
+    .upcoming-step.soon {
+      border-left-color: var(--terracotta);
+      animation: pulse-border 2s ease-in-out infinite;
+      background: linear-gradient(90deg, rgba(196, 93, 62, 0.05) 0%, white 100%);
+    }
+
+    @keyframes pulse-border {
+      0%, 100% { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04); }
+      50% { box-shadow: 0 4px 16px rgba(196, 93, 62, 0.15); }
+    }
+
+    .upcoming-step .title {
+      font-weight: 600;
+      color: var(--text-dark);
+      margin-bottom: 4px;
+    }
+
+    .upcoming-step .detail {
+      font-size: 0.9em;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
     .upcoming-step .countdown {
-      font-size: 1.2em;
-      font-weight: bold;
-      color: #ff6b35;
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 1.4em;
+      font-weight: 700;
+      color: var(--azulejo-blue);
       font-variant-numeric: tabular-nums;
-      min-width: 60px;
+      min-width: 70px;
       text-align: right;
+    }
+
+    .upcoming-step.soon .countdown {
+      color: var(--terracotta);
+    }
+
+    /* Timeline */
+    .timeline-section {
+      margin-top: 40px;
     }
 
     .timeline-step {
       display: flex;
-      padding: 12px 0;
-      border-bottom: 1px solid #333;
+      padding: 16px 0;
+      border-bottom: 1px solid var(--cream-dark);
+      transition: all 0.3s ease;
     }
+
     .timeline-step.completed { opacity: 0.5; }
-    .timeline-step.completed .timeline-title { text-decoration: line-through; }
-    .timeline-step.active {
-      background: rgba(74, 222, 128, 0.1);
-      margin: 0 -20px;
-      padding: 12px 20px;
-      border-radius: 8px;
+
+    .timeline-step.completed .timeline-title {
+      text-decoration: line-through;
+      text-decoration-color: var(--text-muted);
     }
-    .timeline-time { min-width: 70px; font-size: 0.85em; color: #888; }
+
+    .timeline-step.active {
+      background: linear-gradient(90deg, rgba(45, 106, 79, 0.08) 0%, transparent 100%);
+      margin: 0 -24px;
+      padding: 16px 24px;
+      border-radius: 8px;
+      border-bottom: none;
+    }
+
+    .timeline-time {
+      min-width: 75px;
+      font-size: 0.9em;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+      font-weight: 500;
+    }
+
     .timeline-content { flex: 1; }
-    .timeline-title { font-weight: 600; margin-bottom: 3px; }
-    .timeline-detail { font-size: 0.85em; color: #888; }
 
-    .done-section { display: none; text-align: center; padding: 60px 20px; }
-    .done-section h2 { font-size: 2em; margin-bottom: 20px; }
+    .timeline-title {
+      font-weight: 600;
+      color: var(--text-dark);
+      margin-bottom: 4px;
+    }
 
+    .timeline-detail {
+      font-size: 0.9em;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    /* Done Section */
+    .done-section {
+      display: none;
+      text-align: center;
+      padding: 80px 20px;
+    }
+
+    .done-section h2 {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 2.5em;
+      color: var(--success-green);
+      margin-bottom: 16px;
+    }
+
+    .done-section p {
+      color: var(--text-muted);
+      font-size: 1.1em;
+    }
+
+    /* Paused Banner */
     .paused-banner {
       display: none;
-      background: #fbbf24;
-      color: #000;
+      background: linear-gradient(135deg, var(--terracotta) 0%, var(--terracotta-light) 100%);
+      color: white;
       text-align: center;
-      padding: 10px;
-      font-weight: bold;
-      margin-bottom: 20px;
-      border-radius: 8px;
+      padding: 14px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      margin-bottom: 24px;
+      border-radius: 10px;
+      animation: pulse 1.5s ease-in-out infinite;
     }
 
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.85; }
+    }
+
+    /* Fixed Controls */
     .controls {
       position: fixed;
       bottom: 0;
       left: 0;
       right: 0;
-      background: #1a1a2e;
-      padding: 15px 20px;
+      background: white;
+      padding: 16px 20px;
       display: none;
-      gap: 10px;
-      border-top: 1px solid #333;
+      gap: 12px;
+      border-top: 2px solid var(--cream-dark);
+      box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
     }
+
     .controls button {
       flex: 1;
-      padding: 12px;
+      padding: 14px 16px;
       border: none;
-      border-radius: 8px;
+      border-radius: 10px;
       font-size: 1em;
+      font-weight: 600;
+      font-family: inherit;
       cursor: pointer;
+      transition: all 0.2s ease;
     }
-    #pause-btn { background: #fbbf24; color: #000; }
-    #reset-btn { background: #ef4444; color: white; }
-    #new-btn { background: #6366f1; color: white; }
 
-    .error-msg { color: #ef4444; text-align: center; margin-top: 20px; }
+    #pause-btn {
+      background: var(--terracotta);
+      color: white;
+    }
 
+    #pause-btn:hover {
+      background: var(--terracotta-light);
+    }
+
+    #reset-btn {
+      background: var(--cream-dark);
+      color: var(--text-dark);
+    }
+
+    #reset-btn:hover {
+      background: var(--cream);
+    }
+
+    #new-btn {
+      background: var(--azulejo-blue);
+      color: white;
+    }
+
+    #new-btn:hover {
+      background: var(--azulejo-dark);
+    }
+
+    /* Error Message */
+    .error-msg {
+      color: var(--terracotta);
+      text-align: center;
+      margin-top: 20px;
+      font-weight: 500;
+    }
+
+    /* Key Actions */
     .key-actions {
       display: flex;
-      gap: 10px;
-      margin-top: 10px;
+      gap: 12px;
+      margin-top: 16px;
     }
+
     .key-actions button {
       flex: 1;
-      padding: 8px;
-      border: 1px solid #444;
-      border-radius: 6px;
-      background: transparent;
-      color: #888;
+      padding: 12px;
+      border: 2px solid var(--cream-dark);
+      border-radius: 10px;
+      background: white;
+      color: var(--text-muted);
       cursor: pointer;
-      font-size: 0.85em;
+      font-size: 0.9em;
+      font-weight: 500;
+      font-family: inherit;
+      transition: all 0.2s ease;
     }
-    .key-actions button:hover { border-color: #ff6b35; color: #ff6b35; }
+
+    .key-actions button:hover {
+      border-color: var(--azulejo-blue);
+      color: var(--azulejo-blue);
+    }
 
     #unlock-section { display: none; }
+
+    /* Responsive adjustments */
+    @media (max-width: 480px) {
+      h1 { font-size: 1.8em; }
+      .elapsed-time { font-size: 2.8em; }
+      .current-step { padding: 22px; }
+      .current-step h2 { font-size: 1.4em; }
+    }
   </style>
 </head>
 <body>
-  <h1>Recipe Timer</h1>
-  <p class="subtitle">AI-powered cooking timers</p>
+  <div class="header">
+    <h1>Recipe Timer</h1>
+    <p class="subtitle">AI-powered cooking timers</p>
+  </div>
 
   <!-- Unlock Section (for encrypted keys) -->
   <div id="unlock-section">
-    <div class="input-group">
-      <label>Enter your passphrase</label>
-      <input type="password" id="unlock-passphrase" placeholder="Your passphrase to unlock the API key">
+    <div class="card">
+      <div class="input-group">
+        <label>Enter your passphrase</label>
+        <input type="password" id="unlock-passphrase" placeholder="Your passphrase to unlock the API key">
+      </div>
+      <button class="btn-primary" onclick="unlockKey()">Unlock</button>
+      <div class="key-actions">
+        <button onclick="forgetKey()">Use Different Key</button>
+      </div>
+      <div id="unlock-error" class="error-msg"></div>
     </div>
-    <button class="btn-primary" onclick="unlockKey()">Unlock</button>
-    <div class="key-actions">
-      <button onclick="forgetKey()">Use Different Key</button>
-    </div>
-    <div id="unlock-error" class="error-msg"></div>
   </div>
 
   <!-- Setup Section -->
   <div id="setup-section">
-    <div class="input-group">
-      <label>Gemini API Key</label>
-      <input type="password" id="api-key" placeholder="Enter your Gemini API key">
-      <small>
-        Get a free key at <a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a> (250/day free)
-      </small>
-    </div>
-
-    <div class="input-group">
-      <label>Passphrase (optional)</label>
-      <input type="password" id="passphrase" placeholder="Encrypt your key with a passphrase">
-      <small>If set, your key is encrypted. Leave blank for plain storage.</small>
-    </div>
-
-    <div class="info-box">
-      With a passphrase, your key is AES-256 encrypted. Without one, it's stored in plain text (visible in DevTools).
-    </div>
-
-    <!-- Input Mode Tabs -->
-    <div class="input-tabs">
-      <div class="input-tab active" onclick="setInputMode('text')">Type Recipe</div>
-      <div class="input-tab" onclick="setInputMode('photo')">Photo</div>
-    </div>
-
-    <!-- Text Input -->
-    <div id="text-input" class="text-input active">
+    <div class="card">
       <div class="input-group">
-        <label>What are you cooking?</label>
-        <textarea id="recipe-input" placeholder="e.g., Chicken stir fry with vegetables&#10;&#10;Or paste a full recipe..."></textarea>
+        <label>Gemini API Key</label>
+        <input type="password" id="api-key" placeholder="Enter your Gemini API key">
+        <small>
+          Get a free key at <a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a> (250/day free)
+        </small>
       </div>
-    </div>
 
-    <!-- Photo Input -->
-    <div id="photo-input" class="photo-input">
-      <div class="photo-buttons">
-        <label class="photo-btn" for="camera-input">
-          Take Photo
-          <input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto(this)">
-        </label>
-        <label class="photo-btn" for="upload-input">
-          Upload Image
-          <input type="file" id="upload-input" accept="image/*" style="display:none" onchange="handlePhoto(this)">
-        </label>
+      <div class="input-group">
+        <label>Passphrase (optional)</label>
+        <input type="password" id="passphrase" placeholder="Encrypt your key with a passphrase">
+        <small>If set, your key is encrypted. Leave blank for plain storage.</small>
       </div>
-      <div id="photo-preview" class="photo-preview">
-        <img id="preview-img" src="">
-        <button class="remove-btn" onclick="removePhoto()">Remove Photo</button>
-      </div>
-    </div>
 
-    <button id="generate-btn" class="btn-primary" onclick="generateTimer()">Generate Timer</button>
-    <div id="error-msg" class="error-msg"></div>
+      <div class="info-box">
+        With a passphrase, your key is AES-256 encrypted. Without one, it's stored in plain text (visible in DevTools).
+      </div>
+
+      <!-- Input Mode Tabs -->
+      <div class="input-tabs">
+        <div class="input-tab active" onclick="setInputMode('text')">✍️ Type Recipe</div>
+        <div class="input-tab" onclick="setInputMode('photo')">📷 Photo</div>
+      </div>
+
+      <!-- Text Input -->
+      <div id="text-input" class="text-input active">
+        <div class="input-group">
+          <label>What are you cooking?</label>
+          <textarea id="recipe-input" placeholder="e.g., Chicken stir fry with vegetables&#10;&#10;Or paste a full recipe..."></textarea>
+        </div>
+      </div>
+
+      <!-- Photo Input -->
+      <div id="photo-input" class="photo-input">
+        <div class="photo-buttons">
+          <label class="photo-btn" for="camera-input">
+            📸 Take Photo
+            <input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto(this)">
+          </label>
+          <label class="photo-btn" for="upload-input">
+            🖼️ Upload Image
+            <input type="file" id="upload-input" accept="image/*" style="display:none" onchange="handlePhoto(this)">
+          </label>
+        </div>
+        <div id="photo-preview" class="photo-preview">
+          <img id="preview-img" src="">
+          <button class="remove-btn" onclick="removePhoto()">Remove Photo</button>
+        </div>
+      </div>
+
+      <button id="generate-btn" class="btn-primary" onclick="generateTimer()">Generate Timer</button>
+      <div id="error-msg" class="error-msg"></div>
+    </div>
 
     <div id="cached-section" class="cached-recipes" style="display: none;">
       <h3>Recent Recipes</h3>
@@ -382,7 +876,7 @@
 
   <!-- Timer Section -->
   <div id="timer-section">
-    <div class="paused-banner" id="paused-banner">PAUSED</div>
+    <div class="paused-banner" id="paused-banner">⏸ PAUSED</div>
     <div class="elapsed-time" id="elapsed-time">00:00</div>
 
     <div class="section-title">Do This Now</div>
@@ -396,7 +890,7 @@
       <div id="upcoming-steps"></div>
     </div>
 
-    <div class="timeline-section" style="margin-top: 40px;">
+    <div class="timeline-section">
       <div class="section-title">Full Timeline</div>
       <div id="timeline"></div>
     </div>
@@ -404,7 +898,7 @@
 
   <!-- Done Section -->
   <div class="done-section" id="done-section">
-    <h2>All Done!</h2>
+    <h2>✨ All Done!</h2>
     <p id="done-message">Your meal is ready to serve!</p>
   </div>
 
@@ -630,7 +1124,7 @@
             <div class="title">${r.title}</div>
             <div class="meta">${r.steps.length} steps</div>
           </div>
-          <span>→</span>
+          <span class="arrow">→</span>
         </div>
       `).join('');
 
