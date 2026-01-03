@@ -587,11 +587,12 @@
     .upcoming-step {
       background: white;
       border-radius: 12px;
-      padding: 18px 20px;
+      padding: 16px;
       margin-bottom: 12px;
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: flex-start;
+      gap: 12px;
       border-left: 4px solid var(--azulejo-blue);
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
       transition: all 0.3s ease;
@@ -608,26 +609,35 @@
       50% { box-shadow: 0 4px 16px rgba(196, 93, 62, 0.15); }
     }
 
+    .upcoming-step .step-content {
+      flex: 1;
+      min-width: 0; /* Allow text to shrink */
+    }
+
     .upcoming-step .title {
       font-weight: 600;
       color: var(--text-dark);
       margin-bottom: 4px;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
     }
 
     .upcoming-step .detail {
-      font-size: 0.9em;
+      font-size: 0.85em;
       color: var(--text-muted);
       line-height: 1.4;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
     }
 
     .upcoming-step .countdown {
       font-family: 'Cormorant Garamond', Georgia, serif;
-      font-size: 1.4em;
+      font-size: 1.3em;
       font-weight: 700;
       color: var(--azulejo-blue);
       font-variant-numeric: tabular-nums;
-      min-width: 70px;
-      text-align: right;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
 
     .upcoming-step.soon .countdown {
@@ -1388,7 +1398,11 @@ Rules:
 - Each step's time should equal previous step's time + duration
 - Include prep, cooking, and any resting time
 - Be realistic about timing
-- Keep details concise but helpful`
+- IMPORTANT: Each step should be ONE single action (not multiple)
+- Bad: "Chop onions, mince garlic, and slice peppers"
+- Good: Split into 3 separate steps: "Chop onions", "Mince garlic", "Slice peppers"
+- Keep each step title under 6 words
+- Keep each step detail under 80 characters`
             }
           ];
         } else {
@@ -1413,7 +1427,11 @@ Rules:
 - Each step's time should equal previous step's time + duration
 - Include prep, cooking, and any resting time
 - Be realistic about timing
-- Keep details concise but helpful`
+- IMPORTANT: Each step should be ONE single action (not multiple)
+- Bad: "Chop onions, mince garlic, and slice peppers"
+- Good: Split into 3 separate steps: "Chop onions", "Mince garlic", "Slice peppers"
+- Keep each step title under 6 words
+- Keep each step detail under 80 characters`
           }];
         }
 
@@ -1624,11 +1642,12 @@ Rules:
       const upcoming = steps.slice(currentIndex + 1, currentIndex + 4);
       upcomingEl.innerHTML = upcoming.map(step => {
         const countdown = step.time - elapsed;
+        const shortDetail = step.detail.length > 40 ? step.detail.substring(0, 40) + '...' : step.detail;
         return `
           <div class="upcoming-step ${countdown < 120 ? 'soon' : ''}">
-            <div>
+            <div class="step-content">
               <div class="title">${step.title}</div>
-              <div class="detail">${step.detail.substring(0, 50)}${step.detail.length > 50 ? '...' : ''}</div>
+              <div class="detail">${shortDetail}</div>
             </div>
             <div class="countdown">${formatTime(countdown)}</div>
           </div>
