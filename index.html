@@ -235,7 +235,67 @@
       text-decoration: underline;
     }
 
-    /* Key actions row */
+    /* API Key Section - Collapsible */
+    .api-key-section {
+      transition: all 0.3s ease;
+    }
+
+    .api-key-section.collapsed .api-key-full {
+      display: none;
+    }
+
+    .api-key-section.collapsed .api-key-compact {
+      display: flex;
+    }
+
+    .api-key-compact {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      background: linear-gradient(135deg, var(--olive) 0%, var(--olive-dark) 100%);
+      border-radius: 12px;
+      color: white;
+      margin-bottom: 20px;
+    }
+
+    .api-key-compact .key-status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.95em;
+      font-weight: 500;
+    }
+
+    .api-key-compact .key-status .checkmark {
+      width: 20px;
+      height: 20px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75em;
+    }
+
+    .api-key-compact button {
+      padding: 8px 16px;
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+      font-size: 0.85em;
+      font-weight: 500;
+      font-family: inherit;
+      transition: all 0.2s ease;
+    }
+
+    .api-key-compact button:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
+
+    /* Key actions row (expanded state) */
     .key-actions {
       display: flex;
       gap: 12px;
@@ -1049,19 +1109,33 @@
   <!-- Setup Section -->
   <div id="setup-section">
     <div class="card">
-      <div class="input-group" id="api-key-group">
-        <label>Gemini API Key</label>
-        <input type="text" id="api-key" placeholder="Paste your Gemini API key">
-        <small>
-          Get a free key at <a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a> (250 requests/day)
-        </small>
-        <div class="key-actions">
-          <button onclick="forgetKey()">🔑 Change Key</button>
+      <div class="api-key-section" id="api-key-section">
+        <!-- Compact view (shown when key is saved) -->
+        <div class="api-key-compact">
+          <div class="key-status">
+            <span class="checkmark">✓</span>
+            <span>API Key saved</span>
+          </div>
+          <button onclick="expandApiKey()">Edit</button>
         </div>
-      </div>
 
-      <div class="info-box">
-        💡 Your API key stays in this browser only. Each family member should use their own key on their own device.
+        <!-- Full view (shown when entering/editing key) -->
+        <div class="api-key-full">
+          <div class="input-group" id="api-key-group">
+            <label>Gemini API Key</label>
+            <input type="text" id="api-key" placeholder="Paste your Gemini API key">
+            <small>
+              Get a free key at <a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a> (250 requests/day)
+            </small>
+            <div class="key-actions">
+              <button onclick="forgetKey()">🔑 Change Key</button>
+            </div>
+          </div>
+
+          <div class="info-box">
+            💡 Your API key stays in this browser only. Each family member should use their own key on their own device.
+          </div>
+        </div>
       </div>
 
       <!-- Input Mode Tabs -->
@@ -1192,6 +1266,7 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
         input.value = maskApiKey(savedKey);
         input.readOnly = true;
         input.style.color = '#888';
+        collapseApiKey();
       }
 
       // Check for active recipe (in-progress cooking)
@@ -1237,7 +1312,16 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
         input.readOnly = false;
         input.style.color = '';
         input.placeholder = 'Paste your Gemini API key';
+        expandApiKey();
       }
+    }
+
+    function collapseApiKey() {
+      document.getElementById('api-key-section').classList.add('collapsed');
+    }
+
+    function expandApiKey() {
+      document.getElementById('api-key-section').classList.remove('collapsed');
     }
 
     // ==================== INPUT MODES ====================
@@ -1368,6 +1452,7 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
         input.value = maskApiKey(apiKey);
         input.readOnly = true;
         input.style.color = '#888';
+        collapseApiKey();
       }
 
       // Show loading
@@ -1724,7 +1809,7 @@ Rules:
       const upcoming = steps.slice(currentIndex + 1, currentIndex + 4);
       upcomingEl.innerHTML = upcoming.map(step => {
         const countdown = step.time - elapsed;
-        const shortDetail = step.detail.length > 50 ? step.detail.substring(0, 50) + '...' : step.detail;
+        const shortDetail = step.detail.length > 120 ? step.detail.substring(0, 120) + '...' : step.detail;
         return `
           <div class="upcoming-step ${countdown < 120 ? 'soon' : ''}">
             <div class="step-content">
