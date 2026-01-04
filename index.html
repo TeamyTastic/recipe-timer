@@ -980,6 +980,51 @@
       color: var(--terracotta);
     }
 
+    /* Imminent - about to start (<10s) - bright green pulse */
+    .upcoming-step.imminent {
+      border-left-color: var(--olive);
+      background: linear-gradient(90deg, rgba(90, 111, 74, 0.12) 0%, white 100%);
+      animation: pulseImminent 1s ease-in-out infinite;
+    }
+
+    @keyframes pulseImminent {
+      0%, 100% {
+        box-shadow: 0 2px 12px var(--shadow);
+        transform: scale(1);
+      }
+      50% {
+        box-shadow: 0 6px 24px rgba(90, 111, 74, 0.3);
+        transform: scale(1.01);
+      }
+    }
+
+    .upcoming-step.imminent .countdown {
+      color: var(--olive);
+      font-weight: 800;
+    }
+
+    .upcoming-step.imminent .title {
+      color: var(--olive-dark);
+    }
+
+    .upcoming-step.imminent::after {
+      content: 'UP NEXT';
+      position: absolute;
+      top: 10px;
+      right: 12px;
+      background: var(--olive);
+      color: white;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 0.65em;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+
+    .upcoming-step {
+      position: relative;
+    }
+
     /* Timeline */
     .timeline-section { margin-top: 40px; }
 
@@ -2012,8 +2057,10 @@ Rules:
       upcomingEl.innerHTML = upcoming.map(step => {
         const countdown = step.time - elapsed;
         const shortDetail = step.detail.length > 120 ? step.detail.substring(0, 120) + '...' : step.detail;
+        // State: imminent (<10s) > soon (<60s) > normal
+        const stateClass = countdown < 10 ? 'imminent' : countdown < 60 ? 'soon' : '';
         return `
-          <div class="upcoming-step ${countdown < 120 ? 'soon' : ''}">
+          <div class="upcoming-step ${stateClass}">
             <div class="step-content">
               <div class="title">${step.title}</div>
               <div class="detail">${shortDetail}</div>
