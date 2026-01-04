@@ -235,50 +235,7 @@
       text-decoration: underline;
     }
 
-    /* Provider Selection */
-    .provider-toggle {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 20px;
-      background: var(--cream-dark);
-      padding: 5px;
-      border-radius: 12px;
-    }
-
-    .provider-btn {
-      flex: 1;
-      padding: 12px 16px;
-      background: transparent;
-      border: none;
-      border-radius: 9px;
-      color: var(--charcoal-light);
-      cursor: pointer;
-      font-size: 0.9em;
-      font-weight: 600;
-      font-family: inherit;
-      transition: all 0.25s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-    }
-
-    .provider-btn:hover:not(.active) {
-      color: var(--charcoal);
-      background: rgba(255, 255, 255, 0.5);
-    }
-
-    .provider-btn.active {
-      background: white;
-      color: var(--charcoal);
-      box-shadow: 0 2px 8px var(--shadow);
-    }
-
-    .provider-btn .provider-icon {
-      font-size: 1.1em;
-    }
-
-    /* Model Selection (Claude only) */
+    /* Model Selection */
     .model-select-group {
       display: none;
       margin-bottom: 16px;
@@ -1242,20 +1199,8 @@
 
         <!-- Full view (shown when entering/editing key) -->
         <div class="api-key-full">
-          <!-- Provider Toggle -->
-          <div class="provider-toggle">
-            <button class="provider-btn active" onclick="setProvider('gemini')" id="btn-gemini">
-              <span class="provider-icon">✨</span>
-              <span>Gemini</span>
-            </button>
-            <button class="provider-btn" onclick="setProvider('claude')" id="btn-claude">
-              <span class="provider-icon">🤖</span>
-              <span>Claude</span>
-            </button>
-          </div>
-
-          <!-- Model Selection (Claude only) -->
-          <div class="model-select-group" id="model-select-group">
+          <!-- Model Selection -->
+          <div class="model-select-group visible" id="model-select-group">
             <select id="claude-model">
               <option value="claude-sonnet-4-20250514">Claude Sonnet 4 (fast & capable)</option>
               <option value="claude-opus-4-5-20251101">Claude Opus 4.5 (most capable)</option>
@@ -1263,10 +1208,10 @@
           </div>
 
           <div class="input-group" id="api-key-group">
-            <label id="api-key-label">Gemini API Key</label>
-            <input type="text" id="api-key" placeholder="Paste your Gemini API key">
+            <label id="api-key-label">Claude API Key</label>
+            <input type="text" id="api-key" placeholder="Paste your Claude API key (sk-ant-...)">
             <small id="api-key-help">
-              Get a free key at <a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a> (250 requests/day)
+              Get a key at <a href="https://console.anthropic.com/settings/keys" target="_blank">Anthropic Console</a> (paid)
             </small>
             <div class="key-actions">
               <button onclick="forgetKey()">🔑 Change Key</button>
@@ -1391,7 +1336,6 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
     let currentInputMode = 'text';
     let selectedPhoto = null;
     let pendingResumeData = null;
-    let currentProvider = 'gemini'; // 'gemini' or 'claude'
 
     // ==================== INIT ====================
     function maskApiKey(key) {
@@ -1400,21 +1344,14 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
     }
 
     window.onload = function() {
-      // Restore provider preference
-      const savedProvider = storage.get('apiProvider') || 'gemini';
-      currentProvider = savedProvider;
-      setProvider(savedProvider);
-
-      // Check for saved API key for current provider
-      const keyName = savedProvider === 'claude' ? 'claudeApiKey' : 'geminiApiKey';
-      const savedKey = storage.get(keyName);
+      // Check for saved API key
+      const savedKey = storage.get('claudeApiKey');
 
       if (savedKey) {
         const input = document.getElementById('api-key');
         input.value = maskApiKey(savedKey);
         input.readOnly = true;
         input.style.color = '#888';
-        updateCompactLabel();
         collapseApiKey();
       }
 
@@ -1454,16 +1391,12 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
     }
 
     function forgetKey() {
-      const providerName = currentProvider === 'claude' ? 'Claude' : 'Gemini';
-      if (confirm(`Remove saved ${providerName} API key? You'll need to enter it again.`)) {
-        const keyName = currentProvider === 'claude' ? 'claudeApiKey' : 'geminiApiKey';
-        storage.remove(keyName);
+      if (confirm('Remove saved Claude API key? You\'ll need to enter it again.')) {
+        storage.remove('claudeApiKey');
         const input = document.getElementById('api-key');
         input.value = '';
         input.readOnly = false;
         input.style.color = '';
-        // Re-apply provider settings (placeholder, help text, etc.)
-        setProvider(currentProvider);
         expandApiKey();
       }
     }
@@ -1474,52 +1407,6 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
 
     function expandApiKey() {
       document.getElementById('api-key-section').classList.remove('collapsed');
-    }
-
-    // ==================== PROVIDER SWITCHING ====================
-    function setProvider(provider) {
-      currentProvider = provider;
-      storage.set('apiProvider', provider);
-
-      // Update toggle buttons
-      document.getElementById('btn-gemini').classList.toggle('active', provider === 'gemini');
-      document.getElementById('btn-claude').classList.toggle('active', provider === 'claude');
-
-      // Show/hide model selector
-      document.getElementById('model-select-group').classList.toggle('visible', provider === 'claude');
-
-      // Update labels
-      const labelEl = document.getElementById('api-key-label');
-      const inputEl = document.getElementById('api-key');
-      const helpEl = document.getElementById('api-key-help');
-
-      if (provider === 'claude') {
-        labelEl.textContent = 'Claude API Key';
-        inputEl.placeholder = 'Paste your Claude API key (sk-ant-...)';
-        helpEl.innerHTML = 'Get a key at <a href="https://console.anthropic.com/settings/keys" target="_blank">Anthropic Console</a> (paid)';
-      } else {
-        labelEl.textContent = 'Gemini API Key';
-        inputEl.placeholder = 'Paste your Gemini API key';
-        helpEl.innerHTML = 'Get a free key at <a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a> (250 requests/day)';
-      }
-
-      // Check if we have a saved key for this provider
-      const savedKey = storage.get(provider === 'claude' ? 'claudeApiKey' : 'geminiApiKey');
-      if (savedKey) {
-        inputEl.value = maskApiKey(savedKey);
-        inputEl.readOnly = true;
-        inputEl.style.color = '#888';
-      } else {
-        inputEl.value = '';
-        inputEl.readOnly = false;
-        inputEl.style.color = '';
-      }
-    }
-
-    function updateCompactLabel() {
-      const label = document.getElementById('compact-provider-label');
-      const provider = currentProvider === 'claude' ? 'Claude' : 'Gemini';
-      label.textContent = `${provider} API Key saved`;
     }
 
     // ==================== INPUT MODES ====================
@@ -1621,8 +1508,7 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
       const errorEl = document.getElementById('error-msg');
 
       // Use saved key from localStorage, or new key from input
-      const keyStorageId = currentProvider === 'claude' ? 'claudeApiKey' : 'geminiApiKey';
-      let apiKey = storage.get(keyStorageId);
+      let apiKey = storage.get('claudeApiKey');
       const isNewKey = !apiKey && inputValue && !inputValue.includes('••••');
 
       if (isNewKey) {
@@ -1630,7 +1516,7 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
       }
 
       if (!apiKey) {
-        errorEl.textContent = `Please enter your ${currentProvider === 'claude' ? 'Claude' : 'Gemini'} API key`;
+        errorEl.textContent = 'Please enter your Claude API key';
         return;
       }
       if (currentInputMode === 'text' && !recipeInput) {
@@ -1646,7 +1532,7 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
 
       // Save new API key to localStorage
       if (isNewKey) {
-        storage.set(keyStorageId, apiKey);
+        storage.set('claudeApiKey', apiKey);
         const input = document.getElementById('api-key');
         input.value = maskApiKey(apiKey);
         input.readOnly = true;
@@ -1734,74 +1620,47 @@ Rules:
 
         let response, data, text;
 
-        if (currentProvider === 'claude') {
-          // Claude API
-          const claudeModel = document.getElementById('claude-model').value;
-          const promptText = parts.find(p => p.text)?.text || '';
-          const imageData = parts.find(p => p.inlineData);
+        // Claude API
+        const claudeModel = document.getElementById('claude-model').value;
+        const promptText = parts.find(p => p.text)?.text || '';
+        const imageData = parts.find(p => p.inlineData);
 
-          // Build message content
-          const content = [];
-          if (imageData) {
-            content.push({
-              type: 'image',
-              source: {
-                type: 'base64',
-                media_type: imageData.inlineData.mimeType,
-                data: imageData.inlineData.data
-              }
-            });
-          }
-          content.push({ type: 'text', text: promptText });
-
-          response = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-api-key': apiKey,
-              'anthropic-version': '2023-06-01',
-              'anthropic-dangerous-direct-browser-access': 'true'
-            },
-            body: JSON.stringify({
-              model: claudeModel,
-              max_tokens: 4096,
-              messages: [{ role: 'user', content }]
-            })
-          });
-
-          if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.error?.message || 'Claude API request failed');
-          }
-
-          data = await response.json();
-          text = data.content[0].text;
-
-        } else {
-          // Gemini API
-          response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                contents: [{ parts }],
-                generationConfig: {
-                  temperature: 0.7,
-                  maxOutputTokens: 4096
-                }
-              })
+        // Build message content
+        const content = [];
+        if (imageData) {
+          content.push({
+            type: 'image',
+            source: {
+              type: 'base64',
+              media_type: imageData.inlineData.mimeType,
+              data: imageData.inlineData.data
             }
-          );
-
-          if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.error?.message || 'API request failed');
-          }
-
-          data = await response.json();
-          text = data.candidates[0].content.parts[0].text;
+          });
         }
+        content.push({ type: 'text', text: promptText });
+
+        response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true'
+          },
+          body: JSON.stringify({
+            model: claudeModel,
+            max_tokens: 4096,
+            messages: [{ role: 'user', content }]
+          })
+        });
+
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.error?.message || 'Claude API request failed');
+        }
+
+        data = await response.json();
+        text = data.content[0].text;
 
         // Parse JSON (handle markdown code blocks, trailing content, and truncation)
         let jsonStr = text;
