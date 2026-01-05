@@ -2042,8 +2042,9 @@ STYLE: Write like Gordon Ramsay coaching someone in his kitchen:
         startTime = Date.now() - (nextStep.time * 1000);
         storage.set('timerStartTime', startTime);
 
-        // Force updateDisplay to speak by resetting the spoken index
-        lastSpokenIndex = -1;
+        // Speak directly (must be in user gesture context for mobile)
+        speak(nextStep.title + '. ' + nextStep.detail);
+        lastSpokenIndex = currentIndex + 1;
 
         updateDisplay();
       }
