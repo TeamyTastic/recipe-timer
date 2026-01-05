@@ -1091,10 +1091,12 @@
       right: 0;
       background: white;
       padding: 20px;
+      padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
       display: none;
       gap: 12px;
       border-top: 1px solid var(--cream-dark);
       box-shadow: 0 -8px 32px var(--shadow-deep);
+      z-index: 1000;
     }
 
     .controls button {
