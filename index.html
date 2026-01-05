@@ -34,7 +34,7 @@
       color: var(--charcoal);
       min-height: 100vh;
       padding: 24px 20px;
-      padding-bottom: 140px;
+      padding-bottom: 40px;
       position: relative;
       overflow-x: hidden;
     }
@@ -1083,58 +1083,61 @@
       50% { opacity: 0.9; transform: scale(0.99); }
     }
 
-    /* Fixed Controls - elevated bar */
+    /* Floating Controls - always visible, top-right for thumb reach */
     .controls {
       position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: white;
-      padding: 20px;
-      padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+      top: 20px;
+      right: 20px;
       display: none;
-      gap: 12px;
-      border-top: 1px solid var(--cream-dark);
-      box-shadow: 0 -8px 32px var(--shadow-deep);
+      flex-direction: column;
+      gap: 10px;
       z-index: 1000;
     }
 
     .controls button {
-      flex: 1;
-      padding: 16px 18px;
+      width: 56px;
+      height: 56px;
       border: none;
-      border-radius: 14px;
-      font-size: 1em;
+      border-radius: 50%;
+      font-size: 1.4em;
       font-weight: 700;
       font-family: inherit;
       cursor: pointer;
       transition: all 0.2s ease;
+      box-shadow: 0 4px 16px var(--shadow-deep);
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     #pause-btn {
       background: var(--terracotta);
       color: white;
-      box-shadow: 0 3px 0 var(--terracotta-dark);
     }
 
-    #pause-btn:hover { transform: translateY(-1px); }
-    #pause-btn:active { transform: translateY(2px); box-shadow: none; }
+    #pause-btn:active { transform: scale(0.95); }
 
-    #reset-btn {
-      background: var(--cream-dark);
+    #voice-btn {
+      background: var(--cream);
       color: var(--charcoal);
     }
 
-    #reset-btn:hover { background: var(--cream-deep); }
+    #voice-btn.active {
+      background: var(--olive);
+      color: white;
+    }
+
+    #reset-btn {
+      background: var(--cream);
+      color: var(--charcoal);
+    }
 
     #new-btn {
       background: var(--charcoal);
       color: white;
-      box-shadow: 0 3px 0 var(--charcoal-light);
     }
 
-    #new-btn:hover { transform: translateY(-1px); }
-    #new-btn:active { transform: translateY(2px); box-shadow: none; }
+    .controls button:active { transform: scale(0.95); }
 
     /* Error Message */
     .error-msg {
@@ -1196,6 +1199,26 @@
           <option value="claude-sonnet-4-20250514">⚡ Sonnet 4 — fast & cheap</option>
           <option value="claude-opus-4-5-20251101">🧠 Opus 4.5 — complex recipes</option>
         </select>
+      </div>
+
+      <!-- OpenAI Voice Selection -->
+      <div class="model-select-group visible" style="margin-bottom: 16px;">
+        <label style="font-size: 0.85em; color: var(--charcoal-light); margin-bottom: 6px; display: block;">Voice (tap 🔊 during cooking)</label>
+        <select id="openai-voice">
+          <option value="onyx">🔥 Onyx — deep, authoritative (Gordon-like)</option>
+          <option value="echo">⚡ Echo — intense, commanding</option>
+          <option value="fable">📖 Fable — warm, expressive</option>
+          <option value="alloy">🎯 Alloy — balanced, neutral</option>
+          <option value="nova">✨ Nova — friendly, upbeat</option>
+          <option value="shimmer">🌊 Shimmer — clear, gentle</option>
+        </select>
+      </div>
+
+      <!-- OpenAI API Key -->
+      <div class="input-group" style="margin-bottom: 20px;">
+        <label>OpenAI API Key (for voice)</label>
+        <input type="text" id="openai-key" placeholder="sk-...">
+        <small>Get key at <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com</a> · ~3p per recipe</small>
       </div>
 
       <div class="api-key-section" id="api-key-section">
@@ -1315,12 +1338,12 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
     <p id="done-message">Your meal is ready to serve!</p>
   </div>
 
-  <!-- Controls -->
+  <!-- Floating Controls (top-right, always visible during cooking) -->
   <div class="controls" id="controls">
-    <button id="voice-btn" onclick="toggleVoice()">🔊 Voice</button>
-    <button id="pause-btn" onclick="togglePause()">Pause</button>
-    <button id="reset-btn" onclick="resetTimer()">Reset</button>
-    <button id="new-btn" onclick="newRecipe()">New Recipe</button>
+    <button id="pause-btn" onclick="togglePause()" title="Pause/Resume">⏸</button>
+    <button id="voice-btn" onclick="toggleVoice()" title="Voice On/Off">🔇</button>
+    <button id="reset-btn" onclick="resetTimer()" title="Reset Timer">↺</button>
+    <button id="new-btn" onclick="newRecipe()" title="New Recipe">✕</button>
   </div>
 
   <script>
@@ -1344,6 +1367,7 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
     // Voice/TTS
     let voiceEnabled = storage.get('voiceEnabled') === 'true';
     let lastSpokenIndex = -1;
+    let currentAudio = null;  // For OpenAI TTS playback
 
     function toggleVoice() {
       voiceEnabled = !voiceEnabled;
@@ -1358,27 +1382,102 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
           lastSpokenIndex = currentIndex;
         }
       } else {
+        // Stop any playing audio
         window.speechSynthesis.cancel();
+        if (currentAudio) {
+          currentAudio.pause();
+          currentAudio = null;
+        }
       }
     }
 
     function updateVoiceButton() {
       const btn = document.getElementById('voice-btn');
       if (btn) {
-        btn.textContent = voiceEnabled ? '🔊 Voice ON' : '🔇 Voice';
-        btn.style.background = voiceEnabled ? 'var(--olive)' : '';
-        btn.style.color = voiceEnabled ? 'white' : '';
+        btn.textContent = voiceEnabled ? '🔊' : '🔇';
+        btn.classList.toggle('active', voiceEnabled);
       }
     }
 
-    function speak(text) {
-      if (!voiceEnabled || !window.speechSynthesis) return;
+    async function speak(text) {
+      if (!voiceEnabled) return;
+      await speakOpenAI(text);
+    }
+
+    function speakWebSpeech(text) {
+      if (!window.speechSynthesis) return;
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = 1.1;  // Slightly faster for Gordon energy
       utterance.pitch = 1.0;
       utterance.volume = 1.0;
+
+      // Prefer British English voice
+      const voices = window.speechSynthesis.getVoices();
+      const britishVoice = voices.find(v =>
+        v.lang === 'en-GB' && v.name.includes('Daniel')  // Daniel is a good male British voice
+      ) || voices.find(v =>
+        v.lang === 'en-GB'  // Any British voice
+      ) || voices.find(v =>
+        v.lang.startsWith('en')  // Any English voice
+      );
+
+      if (britishVoice) {
+        utterance.voice = britishVoice;
+      }
+
       window.speechSynthesis.speak(utterance);
+    }
+
+    async function speakOpenAI(text) {
+      const openaiKey = storage.get('openaiApiKey');
+      if (!openaiKey) {
+        console.warn('OpenAI key not set, falling back to Web Speech');
+        speakWebSpeech(text);
+        return;
+      }
+
+      // Stop previous audio
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio = null;
+      }
+
+      try {
+        const voice = storage.get('openaiVoice') || 'onyx';
+        const response = await fetch('https://api.openai.com/v1/audio/speech', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${openaiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: 'tts-1',
+            input: text,
+            voice: voice,
+            speed: 1.1  // Slightly faster for Gordon energy
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('OpenAI TTS failed');
+        }
+
+        const audioBlob = await response.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        currentAudio = new Audio(audioUrl);
+        currentAudio.play();
+
+        // Clean up URL after playback
+        currentAudio.onended = () => {
+          URL.revokeObjectURL(audioUrl);
+          currentAudio = null;
+        };
+
+      } catch (err) {
+        console.error('OpenAI TTS error:', err);
+        speakWebSpeech(text);  // Fallback
+      }
     }
 
     // ==================== INIT ====================
@@ -1388,9 +1487,8 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
     }
 
     window.onload = function() {
-      // Check for saved API key
+      // Check for saved Claude API key
       const savedKey = storage.get('claudeApiKey');
-
       if (savedKey) {
         const input = document.getElementById('api-key');
         input.value = maskApiKey(savedKey);
@@ -1398,6 +1496,37 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
         input.style.color = '#888';
         collapseApiKey();
       }
+
+      // Check for saved OpenAI API key
+      const savedOpenAIKey = storage.get('openaiApiKey');
+      if (savedOpenAIKey) {
+        const input = document.getElementById('openai-key');
+        input.value = maskApiKey(savedOpenAIKey);
+        input.readOnly = true;
+        input.style.color = '#888';
+      }
+
+      // Restore OpenAI voice selection
+      const savedVoice = storage.get('openaiVoice');
+      if (savedVoice) {
+        document.getElementById('openai-voice').value = savedVoice;
+      }
+
+      // Save OpenAI voice when changed
+      document.getElementById('openai-voice').addEventListener('change', function() {
+        storage.set('openaiVoice', this.value);
+      });
+
+      // Save OpenAI key when entered (on blur)
+      document.getElementById('openai-key').addEventListener('blur', function() {
+        const val = this.value.trim();
+        if (val && !val.includes('••••') && val.startsWith('sk-')) {
+          storage.set('openaiApiKey', val);
+          this.value = maskApiKey(val);
+          this.readOnly = true;
+          this.style.color = '#888';
+        }
+      });
 
       // Check for active recipe (in-progress cooking)
       const activeRecipe = storage.get('activeRecipe');
@@ -1825,7 +1954,7 @@ STYLE: Write like Gordon Ramsay coaching someone in his kitchen:
       if (isPaused) {
         pausedTime = Date.now();
         storage.set('timerPausedTime', pausedTime);
-        btn.textContent = 'Resume';
+        btn.textContent = '▶';
         banner.style.display = 'block';
         clearInterval(intervalId);
       } else {
@@ -1834,7 +1963,7 @@ STYLE: Write like Gordon Ramsay coaching someone in his kitchen:
         storage.set('timerStartTime', startTime);
         storage.remove('timerPausedTime');
         pausedTime = null;
-        btn.textContent = 'Pause';
+        btn.textContent = '⏸';
         banner.style.display = 'none';
         intervalId = setInterval(updateDisplay, 1000);
       }
