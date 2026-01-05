@@ -1384,6 +1384,9 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
       remove: (key) => { try { localStorage.removeItem(key); } catch(e) {} }
     };
 
+    // Debug mode - only show debug UI when ?setup is in URL
+    const isSetupMode = new URLSearchParams(window.location.search).get('setup') !== null;
+
     let steps = [];
     let recipeTitle = '';
     let startTime = null;
@@ -1492,10 +1495,12 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
       setVoiceAndSpeak();
     }
 
-    // Debug helper - shows temporary message on screen (for mobile debugging)
+    // Debug helper - shows temporary message on screen (only in ?setup mode)
     function showVoiceDebug(msg) {
       console.log('[Voice Debug]', msg);
-      // Temporary visible debug - can remove after fixing
+      // Only show visible debug in setup mode
+      if (!isSetupMode) return;
+
       let debugEl = document.getElementById('voice-debug');
       if (!debugEl) {
         debugEl = document.createElement('div');
