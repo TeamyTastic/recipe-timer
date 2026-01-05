@@ -1201,21 +1201,24 @@
         </select>
       </div>
 
-      <!-- OpenAI Voice Selection (hidden - set via console: localStorage.setItem('openaiVoice', 'onyx')) -->
-      <div class="model-select-group visible" style="display: none;">
+      <!-- OpenAI Voice Selection (hidden - use ?setup URL to show) -->
+      <div class="model-select-group visible" style="display: none; margin-bottom: 16px;">
+        <label style="font-size: 0.85em; color: var(--charcoal-light); margin-bottom: 6px; display: block;">Voice Style</label>
         <select id="openai-voice">
-          <option value="onyx">Onyx</option>
-          <option value="echo">Echo</option>
-          <option value="fable">Fable</option>
-          <option value="alloy">Alloy</option>
-          <option value="nova">Nova</option>
-          <option value="shimmer">Shimmer</option>
+          <option value="onyx">🔥 Onyx — deep, authoritative</option>
+          <option value="echo">⚡ Echo — intense, commanding</option>
+          <option value="fable">📖 Fable — warm, expressive</option>
+          <option value="alloy">🎯 Alloy — balanced, neutral</option>
+          <option value="nova">✨ Nova — friendly, upbeat</option>
+          <option value="shimmer">🌊 Shimmer — clear, gentle</option>
         </select>
       </div>
 
-      <!-- OpenAI API Key (hidden - set via console: localStorage.setItem('openaiApiKey', 'sk-...')) -->
-      <div class="input-group" style="display: none;">
+      <!-- OpenAI API Key (hidden - use ?setup URL to show) -->
+      <div class="input-group" style="display: none; margin-bottom: 20px;">
+        <label>OpenAI API Key (for voice)</label>
         <input type="text" id="openai-key" placeholder="sk-...">
+        <small style="color: var(--olive);">Tap outside the field after pasting to save</small>
       </div>
 
       <div class="api-key-section" id="api-key-section">
@@ -1484,6 +1487,21 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
     }
 
     window.onload = function() {
+      // Check for ?setup URL parameter to show OpenAI settings
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('setup') !== null) {
+        // Show the hidden OpenAI settings
+        document.querySelectorAll('#openai-voice, #openai-key').forEach(el => {
+          el.closest('div').style.display = 'block';
+        });
+        // Make key input editable for setup
+        const openaiInput = document.getElementById('openai-key');
+        openaiInput.readOnly = false;
+        openaiInput.style.color = '';
+        openaiInput.value = '';
+        openaiInput.placeholder = 'Paste your OpenAI key here (sk-...)';
+      }
+
       // Check for saved Claude API key
       const savedKey = storage.get('claudeApiKey');
       if (savedKey) {
