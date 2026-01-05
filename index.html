@@ -1486,10 +1486,16 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
         };
 
         utterance.onstart = () => {
-          showVoiceDebug('Web Speech started speaking');
+          showVoiceDebug('Web Speech started speaking...');
         };
 
-        window.speechSynthesis.speak(utterance);
+        utterance.onend = () => {
+          showVoiceDebug('Web Speech finished speaking');
+        };
+
+        // Chrome mobile sometimes needs this workaround
+        const result = window.speechSynthesis.speak(utterance);
+        showVoiceDebug(`speak() called, pending: ${window.speechSynthesis.pending}, speaking: ${window.speechSynthesis.speaking}`);
       }
 
       setVoiceAndSpeak();
@@ -1516,8 +1522,9 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
 
     async function speakOpenAI(text) {
       const openaiKey = storage.get('openaiApiKey');
+      showVoiceDebug(`OpenAI key check: ${openaiKey ? 'found (' + openaiKey.slice(0,7) + '...)' : 'NOT FOUND'}`);
       if (!openaiKey) {
-        showVoiceDebug('No OpenAI key - using Web Speech fallback');
+        showVoiceDebug('No OpenAI key - falling back to Web Speech');
         speakWebSpeech(text);
         return;
       }
