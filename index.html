@@ -1443,29 +1443,33 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
         return;
       }
 
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 1.1;  // Slightly faster for Gordon energy
-      utterance.pitch = 1.0;
-      utterance.volume = 1.0;
+      showVoiceDebug('Web Speech fallback starting...');
 
-      // Prefer British English voice
+      // Chrome workaround: cancel, pause, resume pattern
+      window.speechSynthesis.cancel();
+
+      // Get voices
       let voices = window.speechSynthesis.getVoices();
 
       // Chrome loads voices async - wait if empty
       if (voices.length === 0) {
-        showVoiceDebug('Voices not loaded yet, waiting...');
+        showVoiceDebug('Voices not loaded, waiting...');
         window.speechSynthesis.onvoiceschanged = () => {
           voices = window.speechSynthesis.getVoices();
-          showVoiceDebug(`Voices loaded: ${voices.length} available`);
-          setVoiceAndSpeak();
+          showVoiceDebug(`Voices loaded: ${voices.length}`);
+          doSpeak();
         };
-        // Trigger voice loading
-        window.speechSynthesis.getVoices();
         return;
       }
 
-      function setVoiceAndSpeak() {
+      function doSpeak() {
+        // Create fresh utterance each time
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 1.1;
+        utterance.pitch = 1.0;
+        utterance.volume = 1.0;
+
+        // Find voice
         const britishVoice = voices.find(v =>
           v.lang === 'en-GB' && v.name.includes('Daniel')
         ) || voices.find(v =>
@@ -1476,41 +1480,62 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
 
         if (britishVoice) {
           utterance.voice = britishVoice;
-          showVoiceDebug(`Web Speech: using ${britishVoice.name}`);
+          showVoiceDebug(`Voice: ${britishVoice.name}`);
         } else {
-          showVoiceDebug(`Web Speech: using default voice`);
+          showVoiceDebug('Voice: system default');
         }
 
         utterance.onerror = (e) => {
-          showVoiceDebug(`Web Speech error: ${e.error}`);
+          showVoiceDebug(`ERROR: ${e.error}`);
         };
 
         utterance.onstart = () => {
-          showVoiceDebug('Web Speech started speaking...');
+          showVoiceDebug('🔊 Speaking...');
         };
 
         utterance.onend = () => {
-          showVoiceDebug('Web Speech finished speaking');
+          showVoiceDebug('✓ Finished');
         };
 
-        // Chrome mobile sometimes needs this workaround
-        const result = window.speechSynthesis.speak(utterance);
-        showVoiceDebug(`speak() called, pending: ${window.speechSynthesis.pending}, speaking: ${window.speechSynthesis.speaking}`);
+        // Chrome mobile fix: must cancel, then speak, then resume if paused
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utterance);
+
+        // Chrome bug: speech gets stuck in paused state - force resume
+        if (window.speechSynthesis.paused) {
+          showVoiceDebug('Was paused, resuming...');
+          window.speechSynthesis.resume();
+        }
+
+        // Chrome bug: sometimes stops after 15s, ping to keep alive
+        const keepAlive = setInterval(() => {
+          if (!window.speechSynthesis.speaking) {
+            clearInterval(keepAlive);
+          } else {
+            window.speechSynthesis.pause();
+            window.speechSynthesis.resume();
+          }
+        }, 10000);
+
+        showVoiceDebug(`Queued. speaking=${window.speechSynthesis.speaking}`);
       }
 
-      setVoiceAndSpeak();
+      doSpeak();
     }
 
     // Debug helper - shows temporary message on screen (only in ?setup mode)
     let debugMessages = [];
-    function showVoiceDebug(msg) {
-      console.log('[Voice Debug]', msg);
+    let debugCallId = 0;
+    function showVoiceDebug(msg, newCall = false) {
+      if (newCall) debugCallId++;
+      const taggedMsg = `[${debugCallId}] ${msg}`;
+      console.log('[Voice Debug]', taggedMsg);
       // Only show visible debug in setup mode
       if (!isSetupMode) return;
 
-      // Append to message log (keep last 8 messages)
-      debugMessages.push(msg);
-      if (debugMessages.length > 8) debugMessages.shift();
+      // Append to message log (keep last 10 messages)
+      debugMessages.push(taggedMsg);
+      if (debugMessages.length > 10) debugMessages.shift();
 
       let debugEl = document.getElementById('voice-debug');
       if (!debugEl) {
@@ -1532,8 +1557,9 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
     }
 
     async function speakOpenAI(text) {
+      showVoiceDebug('--- speak() called ---', true);  // New call marker
       const openaiKey = storage.get('openaiApiKey');
-      showVoiceDebug(`OpenAI key check: ${openaiKey ? 'found (' + openaiKey.slice(0,7) + '...)' : 'NOT FOUND'}`);
+      showVoiceDebug(`OpenAI key: ${openaiKey ? 'found (' + openaiKey.slice(0,7) + '...)' : 'NOT FOUND'}`);
       if (!openaiKey) {
         showVoiceDebug('No OpenAI key - falling back to Web Speech');
         speakWebSpeech(text);
