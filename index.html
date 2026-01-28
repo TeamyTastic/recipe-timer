@@ -765,6 +765,60 @@
       50% { opacity: 0.8; transform: translateY(-12px) scaleY(1.3); }
     }
 
+    /* Fire animation under pot */
+    .fire {
+      position: absolute;
+      bottom: -25px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 6px;
+    }
+
+    .flame {
+      width: 14px;
+      height: 30px;
+      background: linear-gradient(to top,
+        var(--terracotta) 0%,
+        var(--terracotta-light) 40%,
+        var(--gold) 80%,
+        transparent 100%);
+      border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+      animation: flicker 0.3s ease-in-out infinite alternate;
+      filter: blur(1px);
+    }
+
+    .flame:nth-child(1) {
+      animation-delay: 0s;
+      animation-duration: 0.25s;
+    }
+
+    .flame:nth-child(2) {
+      animation-delay: 0.1s;
+      animation-duration: 0.35s;
+      height: 35px;
+    }
+
+    .flame:nth-child(3) {
+      animation-delay: 0.2s;
+      animation-duration: 0.3s;
+    }
+
+    @keyframes flicker {
+      0% {
+        transform: scaleY(0.9) scaleX(1.05);
+        opacity: 0.8;
+      }
+      50% {
+        transform: scaleY(1) scaleX(1);
+        opacity: 1;
+      }
+      100% {
+        transform: scaleY(1.1) scaleX(0.95);
+        opacity: 0.9;
+      }
+    }
+
     #loading-section p {
       color: var(--charcoal-light);
       font-size: 1.1em;
@@ -1311,6 +1365,11 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
         <div class="steam-line"></div>
       </div>
       <div class="pot"></div>
+      <div class="fire">
+        <div class="flame"></div>
+        <div class="flame"></div>
+        <div class="flame"></div>
+      </div>
     </div>
     <p id="loading-text">Creating your cooking timer...</p>
   </div>
