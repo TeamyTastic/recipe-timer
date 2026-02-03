@@ -1548,6 +1548,7 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
     const RECIPES_GIST_ID = 'd6a0727d538dbe13689aabf6baae0ac4';
     const RECIPES_GIST_RAW = `https://gist.githubusercontent.com/Camekazi/${RECIPES_GIST_ID}/raw/recipes.json`;
     const RECIPES_GIST_EDIT = `https://gist.github.com/Camekazi/${RECIPES_GIST_ID}/edit`;
+    const RECIPES_GIST_API = `https://api.github.com/gists/${RECIPES_GIST_ID}`;
     let lastRecipeSource = null; // 'typed', 'photo', or 'library'
     let lastRawRecipe = null; // The original input text
 
@@ -1764,6 +1765,23 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
 
     async function saveToLibrary() {
       const statusEl = document.getElementById('save-status');
+      const saveBtn = document.getElementById('save-to-library-btn');
+
+      // Check for GitHub token
+      let ghToken = storage.get('githubGistToken');
+      if (!ghToken) {
+        // Prompt for token (one-time setup)
+        ghToken = prompt(
+          'One-time setup: Paste a GitHub Personal Access Token (with "gist" scope).\n\n' +
+          'Create one at: github.com/settings/tokens → Generate new token → Select "gist" scope\n\n' +
+          'This lets the app save recipes directly to your library.'
+        );
+        if (!ghToken) {
+          statusEl.innerHTML = '<small>Cancelled. Need a GitHub token to auto-save.</small>';
+          return;
+        }
+        storage.set('githubGistToken', ghToken);
+      }
 
       // Generate a slug from the title
       const slug = recipeTitle
@@ -1772,8 +1790,8 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
         .replace(/^-|-$/g, '')
         + '-' + new Date().toISOString().slice(0, 7);
 
-      // Create the JSON entry
-      const entry = {
+      // Create the new recipe entry
+      const newRecipe = {
         id: slug,
         title: recipeTitle,
         tags: [],
@@ -1781,24 +1799,60 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
         rawRecipe: lastRawRecipe || recipeTitle
       };
 
-      const jsonText = JSON.stringify(entry, null, 2);
+      saveBtn.disabled = true;
+      saveBtn.textContent = '💾 Saving...';
+      statusEl.innerHTML = '';
 
-      // Copy to clipboard and open gist
       try {
-        await navigator.clipboard.writeText(jsonText);
-        statusEl.innerHTML = '✓ Copied! Opening gist...';
+        // Fetch current gist content
+        const gistResp = await fetch(RECIPES_GIST_API, {
+          headers: { 'Authorization': `token ${ghToken}` }
+        });
+        if (!gistResp.ok) throw new Error('Could not fetch gist');
 
-        // Open gist edit page (works on mobile too!)
-        setTimeout(() => {
-          window.open(RECIPES_GIST_EDIT, '_blank');
-          statusEl.innerHTML = '✓ Paste before the last <code>]</code><br><small>Add comma after previous recipe, then "Update gist"</small>';
-        }, 500);
+        const gistData = await gistResp.json();
+        const currentContent = gistData.files['recipes.json'].content;
+        const library = JSON.parse(currentContent);
+
+        // Check for duplicate
+        if (library.recipes.some(r => r.title === newRecipe.title)) {
+          statusEl.innerHTML = '⚠️ Recipe already in library!';
+          saveBtn.disabled = false;
+          saveBtn.textContent = '📚 Save to Library';
+          return;
+        }
+
+        // Add new recipe
+        library.recipes.push(newRecipe);
+        const updatedContent = JSON.stringify(library, null, 2);
+
+        // Update gist
+        const updateResp = await fetch(RECIPES_GIST_API, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `token ${ghToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            files: { 'recipes.json': { content: updatedContent } }
+          })
+        });
+
+        if (!updateResp.ok) throw new Error('Could not update gist');
+
+        // Success!
+        statusEl.innerHTML = '✅ Saved to library!';
+        saveBtn.textContent = '✓ Saved';
+        saveBtn.style.background = 'var(--olive)';
+
+        // Refresh library cache
+        libraryLoaded = false;
 
       } catch (err) {
-        // Fallback: just open gist with instructions
-        statusEl.innerHTML = `<small>Copy this, then tap "Open Gist" below:</small>
-          <pre style="text-align:left; background:var(--cream-dark); padding:12px; border-radius:8px; font-size:0.75em; overflow-x:auto; margin-top:8px; max-height:150px;">${jsonText.replace(/</g, '&lt;')}</pre>
-          <button onclick="window.open('${RECIPES_GIST_EDIT}', '_blank')" style="margin-top:12px; padding:12px 20px; background:var(--olive); color:white; border:none; border-radius:8px; font-weight:600; cursor:pointer;">Open Gist →</button>`;
+        console.error('Save error:', err);
+        statusEl.innerHTML = `❌ ${err.message}<br><small>Token may be invalid. <a href="#" onclick="storage.remove('githubGistToken'); location.reload();">Reset token</a></small>`;
+        saveBtn.disabled = false;
+        saveBtn.textContent = '📚 Save to Library';
       }
     }
 
