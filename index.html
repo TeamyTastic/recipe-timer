@@ -622,6 +622,83 @@
       box-shadow: 0 4px 0 var(--terracotta-dark);
     }
 
+    /* Recipe Library */
+    .library-section {
+      display: none;
+    }
+
+    .library-section.active {
+      display: block;
+    }
+
+    .library-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .library-item {
+      background: white;
+      padding: 18px 20px;
+      border-radius: 14px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 8px var(--shadow);
+      transition: all 0.2s ease;
+      border-left: 4px solid var(--olive);
+    }
+
+    .library-item:hover {
+      transform: translateX(6px);
+      box-shadow: 0 4px 16px var(--shadow-deep);
+      border-left-color: var(--terracotta);
+    }
+
+    .library-item .title {
+      font-weight: 600;
+      color: var(--charcoal);
+      font-size: 1.05em;
+    }
+
+    .library-item .tags {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+      flex-wrap: wrap;
+    }
+
+    .library-item .tag {
+      background: var(--cream-dark);
+      color: var(--charcoal-light);
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 0.75em;
+      font-weight: 500;
+    }
+
+    .library-item .arrow {
+      color: var(--terracotta);
+      font-size: 1.3em;
+      transition: transform 0.2s ease;
+      flex-shrink: 0;
+      margin-left: 12px;
+    }
+
+    .library-item:hover .arrow {
+      transform: translateX(4px);
+    }
+
+    .library-empty {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--charcoal-light);
+    }
+
+    .library-empty p {
+      margin-bottom: 12px;
+    }
+
     /* Cached Recipes */
     .cached-recipes {
       margin-top: 32px;
@@ -1312,8 +1389,9 @@
 
       <!-- Input Mode Tabs -->
       <div class="input-tabs">
-        <div class="input-tab active" onclick="setInputMode('text')">✍️ Type Recipe</div>
-        <div class="input-tab" onclick="setInputMode('photo')">📷 Take Photo</div>
+        <div class="input-tab active" onclick="setInputMode('text')">✍️ Type</div>
+        <div class="input-tab" onclick="setInputMode('photo')">📷 Photo</div>
+        <div class="input-tab" onclick="setInputMode('library')">📚 Library</div>
       </div>
 
       <!-- Text Input -->
@@ -1343,6 +1421,15 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
         <div id="photo-preview" class="photo-preview">
           <img id="preview-img" src="">
           <button class="remove-btn" onclick="removePhoto()">✕ Remove Photo</button>
+        </div>
+      </div>
+
+      <!-- Library Input -->
+      <div id="library-input" class="library-section">
+        <div id="library-grid" class="library-grid">
+          <div class="library-empty">
+            <p>Loading recipes...</p>
+          </div>
         </div>
       </div>
 
@@ -1430,6 +1517,8 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
     let currentInputMode = 'text';
     let selectedPhoto = null;
     let pendingResumeData = null;
+    let libraryLoaded = false;
+    let libraryRecipes = [];
 
     // Audio beep
     let lastBeepIndex = -1;
@@ -1563,10 +1652,78 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
     function setInputMode(mode) {
       currentInputMode = mode;
       document.querySelectorAll('.input-tab').forEach(t => t.classList.remove('active'));
-      document.querySelector(`.input-tab:${mode === 'text' ? 'first' : 'last'}-child`).classList.add('active');
+      // Find the right tab to activate
+      const tabs = document.querySelectorAll('.input-tab');
+      if (mode === 'text') tabs[0].classList.add('active');
+      else if (mode === 'photo') tabs[1].classList.add('active');
+      else if (mode === 'library') tabs[2].classList.add('active');
 
       document.getElementById('text-input').classList.toggle('active', mode === 'text');
       document.getElementById('photo-input').classList.toggle('active', mode === 'photo');
+      document.getElementById('library-input').classList.toggle('active', mode === 'library');
+
+      // Hide generate button in library mode (recipes are pre-loaded)
+      document.getElementById('generate-btn').style.display = mode === 'library' ? 'none' : 'block';
+
+      // Load library on first view
+      if (mode === 'library' && !libraryLoaded) {
+        loadLibrary();
+      }
+    }
+
+    // ==================== RECIPE LIBRARY ====================
+    async function loadLibrary() {
+      const grid = document.getElementById('library-grid');
+
+      try {
+        const response = await fetch('recipes.json');
+        if (!response.ok) throw new Error('Could not load recipes');
+
+        const data = await response.json();
+        libraryRecipes = data.recipes || [];
+        libraryLoaded = true;
+
+        if (libraryRecipes.length === 0) {
+          grid.innerHTML = `
+            <div class="library-empty">
+              <p>No recipes in library yet.</p>
+              <p style="font-size: 0.9em;">Add recipes to recipes.json to build your collection.</p>
+            </div>
+          `;
+          return;
+        }
+
+        grid.innerHTML = libraryRecipes.map((recipe, i) => `
+          <div class="library-item" onclick="selectLibraryRecipe(${i})">
+            <div>
+              <div class="title">${recipe.title}</div>
+              ${recipe.tags ? `<div class="tags">${recipe.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>` : ''}
+            </div>
+            <span class="arrow">→</span>
+          </div>
+        `).join('');
+
+      } catch (err) {
+        console.error('Library load error:', err);
+        grid.innerHTML = `
+          <div class="library-empty">
+            <p>Could not load recipe library.</p>
+            <p style="font-size: 0.9em; color: var(--terracotta);">${err.message}</p>
+          </div>
+        `;
+      }
+    }
+
+    function selectLibraryRecipe(index) {
+      const recipe = libraryRecipes[index];
+      if (!recipe) return;
+
+      // Switch to text mode and populate the input
+      setInputMode('text');
+      document.getElementById('recipe-input').value = recipe.rawRecipe;
+
+      // Auto-generate (user still needs API key)
+      generateTimer();
     }
 
     function handlePhoto(input) {

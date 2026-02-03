@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "recipes": [
+    {
+      "id": "cod-fajitas-2026",
+      "title": "Cod Fajitas",
+      "tags": ["fish", "quick", "gousto"],
+      "addedDate": "2026-02-03",
+      "rawRecipe": "Cod Fajitas (Gousto)\n\nIngredients: 2 cod fillets, 1 red pepper, 1 yellow pepper, 1 red onion, fajita spice mix, 4 tortillas, lime, sour cream, coriander\n\nInstructions:\n1. Preheat oven to 200°C\n2. Slice peppers and onion into strips\n3. Toss vegetables with oil and half the spice mix, roast 15 mins\n4. Cut cod into chunks, season with remaining spice\n5. Add cod to tray with veg, roast another 10-12 mins until fish flakes\n6. Warm tortillas\n7. Serve with lime wedges, sour cream and coriander"
+    },
+    {
+      "id": "chicken-stir-fry-basic",
+      "title": "Quick Chicken Stir Fry",
+      "tags": ["chicken", "quick", "weeknight"],
+      "addedDate": "2026-02-03",
+      "rawRecipe": "Quick Chicken Stir Fry\n\nIngredients: 2 chicken breasts, 1 broccoli head, 1 red pepper, 2 garlic cloves, ginger, soy sauce, sesame oil, rice\n\nInstructions:\n1. Put rice on to cook (12-15 mins)\n2. Slice chicken into strips\n3. Cut broccoli into florets, slice pepper\n4. Heat wok until smoking, add oil\n5. Stir fry chicken 3-4 mins until golden\n6. Add vegetables, stir fry 2-3 mins\n7. Add garlic, ginger, soy sauce\n8. Toss everything together, serve over rice"
+    }
+  ]
+}
