@@ -1543,6 +1543,11 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
     let pendingResumeData = null;
     let libraryLoaded = false;
     let libraryRecipes = [];
+
+    // Gist-based recipe library (editable via GitHub web UI)
+    const RECIPES_GIST_ID = 'd6a0727d538dbe13689aabf6baae0ac4';
+    const RECIPES_GIST_RAW = `https://gist.githubusercontent.com/Camekazi/${RECIPES_GIST_ID}/raw/recipes.json`;
+    const RECIPES_GIST_EDIT = `https://gist.github.com/Camekazi/${RECIPES_GIST_ID}/edit`;
     let lastRecipeSource = null; // 'typed', 'photo', or 'library'
     let lastRawRecipe = null; // The original input text
 
@@ -1702,7 +1707,8 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
       const grid = document.getElementById('library-grid');
 
       try {
-        const response = await fetch('recipes.json');
+        // Fetch from gist (add cache-bust to get latest)
+        const response = await fetch(RECIPES_GIST_RAW + '?t=' + Date.now());
         if (!response.ok) throw new Error('Could not load recipes');
 
         const data = await response.json();
@@ -1764,7 +1770,7 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-|-$/g, '')
-        + '-' + new Date().toISOString().slice(0, 7); // e.g., "cod-fajitas-2026-02"
+        + '-' + new Date().toISOString().slice(0, 7);
 
       // Create the JSON entry
       const entry = {
@@ -1777,24 +1783,22 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
 
       const jsonText = JSON.stringify(entry, null, 2);
 
-      // Copy to clipboard
+      // Copy to clipboard and open gist
       try {
         await navigator.clipboard.writeText(jsonText);
-        statusEl.innerHTML = '✓ Copied to clipboard!<br><small>Opening GitHub editor...</small>';
+        statusEl.innerHTML = '✓ Copied! Opening gist...';
 
-        // Open GitHub editor after a brief delay
+        // Open gist edit page (works on mobile too!)
         setTimeout(() => {
-          const editUrl = 'https://github.com/TeamyTastic/recipe-timer/edit/main/recipes.json';
-          window.open(editUrl, '_blank');
-          statusEl.innerHTML = '✓ Paste before the last <code>]</code> in recipes.json<br><small>(add a comma after the previous recipe)</small>';
-        }, 800);
+          window.open(RECIPES_GIST_EDIT, '_blank');
+          statusEl.innerHTML = '✓ Paste before the last <code>]</code><br><small>Add comma after previous recipe, then "Update gist"</small>';
+        }, 500);
 
       } catch (err) {
-        // Fallback: show the JSON to copy manually
-        statusEl.innerHTML = `
-          <small>Copy this and add to recipes.json:</small>
-          <pre style="text-align:left; background:var(--cream-dark); padding:12px; border-radius:8px; font-size:0.8em; overflow-x:auto; margin-top:8px;">${jsonText.replace(/</g, '&lt;')}</pre>
-        `;
+        // Fallback: just open gist with instructions
+        statusEl.innerHTML = `<small>Copy this, then tap "Open Gist" below:</small>
+          <pre style="text-align:left; background:var(--cream-dark); padding:12px; border-radius:8px; font-size:0.75em; overflow-x:auto; margin-top:8px; max-height:150px;">${jsonText.replace(/</g, '&lt;')}</pre>
+          <button onclick="window.open('${RECIPES_GIST_EDIT}', '_blank')" style="margin-top:12px; padding:12px 20px; background:var(--olive); color:white; border:none; border-radius:8px; font-weight:600; cursor:pointer;">Open Gist →</button>`;
       }
     }
 
