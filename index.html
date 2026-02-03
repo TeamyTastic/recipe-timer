@@ -1231,6 +1231,26 @@
       font-size: 1.15em;
     }
 
+    .btn-save-library {
+      margin-top: 24px;
+      background: linear-gradient(135deg, var(--olive) 0%, var(--olive-dark) 100%);
+      color: white;
+      border: none;
+      padding: 16px 28px;
+      font-size: 1.05em;
+      font-weight: 600;
+      font-family: inherit;
+      border-radius: 14px;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(90, 111, 74, 0.3);
+      transition: all 0.2s ease;
+    }
+
+    .btn-save-library:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(90, 111, 74, 0.4);
+    }
+
     /* Paused Banner */
     .paused-banner {
       display: none;
@@ -1488,6 +1508,10 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
     <div class="done-icon">🍽️</div>
     <h2>All Done!</h2>
     <p id="done-message">Your meal is ready to serve!</p>
+    <button id="save-to-library-btn" class="btn-save-library" onclick="saveToLibrary()" style="display:none;">
+      📚 Save to Library
+    </button>
+    <p id="save-status" style="margin-top: 12px; font-size: 0.9em; color: var(--olive);"></p>
   </div>
 
   <!-- Floating Controls (top-right, always visible during cooking) -->
@@ -1519,6 +1543,8 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
     let pendingResumeData = null;
     let libraryLoaded = false;
     let libraryRecipes = [];
+    let lastRecipeSource = null; // 'typed', 'photo', or 'library'
+    let lastRawRecipe = null; // The original input text
 
     // Audio beep
     let lastBeepIndex = -1;
@@ -1718,12 +1744,58 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
       const recipe = libraryRecipes[index];
       if (!recipe) return;
 
+      // Mark as library recipe (won't show "Save to Library" button)
+      lastRecipeSource = 'library';
+      lastRawRecipe = recipe.rawRecipe;
+
       // Switch to text mode and populate the input
       setInputMode('text');
       document.getElementById('recipe-input').value = recipe.rawRecipe;
 
       // Auto-generate (user still needs API key)
       generateTimer();
+    }
+
+    async function saveToLibrary() {
+      const statusEl = document.getElementById('save-status');
+
+      // Generate a slug from the title
+      const slug = recipeTitle
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+        + '-' + new Date().toISOString().slice(0, 7); // e.g., "cod-fajitas-2026-02"
+
+      // Create the JSON entry
+      const entry = {
+        id: slug,
+        title: recipeTitle,
+        tags: [],
+        addedDate: new Date().toISOString().slice(0, 10),
+        rawRecipe: lastRawRecipe || recipeTitle
+      };
+
+      const jsonText = JSON.stringify(entry, null, 2);
+
+      // Copy to clipboard
+      try {
+        await navigator.clipboard.writeText(jsonText);
+        statusEl.innerHTML = '✓ Copied to clipboard!<br><small>Opening GitHub editor...</small>';
+
+        // Open GitHub editor after a brief delay
+        setTimeout(() => {
+          const editUrl = 'https://github.com/TeamyTastic/recipe-timer/edit/main/recipes.json';
+          window.open(editUrl, '_blank');
+          statusEl.innerHTML = '✓ Paste before the last <code>]</code> in recipes.json<br><small>(add a comma after the previous recipe)</small>';
+        }, 800);
+
+      } catch (err) {
+        // Fallback: show the JSON to copy manually
+        statusEl.innerHTML = `
+          <small>Copy this and add to recipes.json:</small>
+          <pre style="text-align:left; background:var(--cream-dark); padding:12px; border-radius:8px; font-size:0.8em; overflow-x:auto; margin-top:8px;">${jsonText.replace(/</g, '&lt;')}</pre>
+        `;
+      }
     }
 
     function handlePhoto(input) {
@@ -1805,6 +1877,8 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
       const recipe = cached[index];
       steps = recipe.steps;
       recipeTitle = recipe.title;
+      lastRecipeSource = 'cached';
+      lastRawRecipe = recipe.rawRecipe || `Cached recipe: ${recipe.title}`;
       saveActiveRecipe();
       startCooking();
     }
@@ -2021,6 +2095,10 @@ STYLE: Write like Gordon Ramsay coaching someone in his kitchen:
         steps = recipe.steps;
         recipeTitle = recipe.title;
 
+        // Track source for "Save to Library" feature
+        lastRecipeSource = currentInputMode; // 'text' or 'photo'
+        lastRawRecipe = currentInputMode === 'photo' ? `[Photo of ${recipeTitle}]` : recipeInput;
+
         // Cache and start
         cacheRecipe(recipe);
         saveActiveRecipe();
@@ -2192,6 +2270,12 @@ STYLE: Write like Gordon Ramsay coaching someone in his kitchen:
         document.getElementById('timer-section').style.display = 'none';
         document.getElementById('done-section').style.display = 'block';
         document.getElementById('done-message').textContent = `${recipeTitle} is ready!`;
+
+        // Show "Save to Library" button only for new recipes (not from library)
+        const saveBtn = document.getElementById('save-to-library-btn');
+        saveBtn.style.display = lastRecipeSource !== 'library' ? 'inline-block' : 'none';
+        document.getElementById('save-status').textContent = '';
+
         storage.remove('activeRecipe');
         storage.remove('timerStartTime');
         clearInterval(intervalId);
