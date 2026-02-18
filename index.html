@@ -125,7 +125,7 @@
       font-family: 'Fraunces', Georgia, serif;
       font-size: 2.4em;
       font-weight: 700;
-      font-optical-sizing: auto;
+      /* font-optical-sizing: auto; — valid CSS but flagged by W3C validator */
       color: var(--charcoal);
       letter-spacing: -0.02em;
       line-height: 1.1;
@@ -1418,9 +1418,13 @@
       <div id="text-input" class="text-input active">
         <div class="input-group">
           <label>What are you making?</label>
-          <textarea id="recipe-input" placeholder="Describe your dish or paste a recipe...
+          <textarea id="recipe-input" placeholder="Paste a recipe URL, or describe your dish...
 
-Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></textarea>
+Example: https://www.bbcgoodfood.com/recipes/chicken-stir-fry
+Or just: Chicken stir fry with broccoli and soy ginger sauce"></textarea>
+          <small id="url-detected" style="display:none; color: var(--olive); font-weight: 600;">
+            🔗 URL detected — will fetch the actual recipe from the page
+          </small>
         </div>
       </div>
 
@@ -1439,7 +1443,7 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
           </label>
         </div>
         <div id="photo-preview" class="photo-preview">
-          <img id="preview-img" src="">
+          <img id="preview-img" src="data:," alt="Recipe photo preview">
           <button class="remove-btn" onclick="removePhoto()">✕ Remove Photo</button>
         </div>
       </div>
@@ -1908,6 +1912,231 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
       document.getElementById('upload-input').value = '';
     }
 
+    // ==================== URL DETECTION & FETCHING ====================
+    const URL_REGEX = /https?:\/\/[^\s<>"{}|\\^`\[\]]+/i;
+
+    function detectUrl(text) {
+      const match = text.trim().match(URL_REGEX);
+      if (!match) return null;
+      // Strip trailing punctuation that's likely not part of the URL
+      return match[0].replace(/[.,;:!?)]+$/, '');
+    }
+
+    /** Reject private/loopback URLs to prevent SSRF through CORS proxies */
+    function isSafeUrl(url) {
+      try {
+        const parsed = new URL(url);
+        if (!['http:', 'https:'].includes(parsed.protocol)) return false;
+        const h = parsed.hostname.toLowerCase();
+        if (/^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|169\.254\.|0\.)/.test(h)) return false;
+        if (h === '[::1]' || h === '0.0.0.0') return false;
+        return true;
+      } catch { return false; }
+    }
+
+    // Show/hide URL detection indicator as user types
+    // (No DOMContentLoaded wrapper — this script runs after the DOM is parsed)
+    (function() {
+      const input = document.getElementById('recipe-input');
+      const indicator = document.getElementById('url-detected');
+      if (input && indicator) {
+        input.addEventListener('input', () => {
+          indicator.style.display = detectUrl(input.value) ? 'block' : 'none';
+        });
+      }
+    })();
+
+    /**
+     * Fetch a URL through CORS proxies with fallback.
+     * Tries multiple proxies in sequence until one works.
+     */
+    async function fetchWithCorsProxy(url) {
+      const proxies = [
+        { name: 'allorigins', url: `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, extract: (r) => r.json().then(d => d.contents) },
+        { name: 'corsproxy', url: `https://corsproxy.io/?url=${encodeURIComponent(url)}`, extract: (r) => r.text() },
+      ];
+
+      for (const proxy of proxies) {
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
+          const response = await fetch(proxy.url, { signal: controller.signal });
+
+          if (!response.ok) { clearTimeout(timeout); continue; }
+          const html = await proxy.extract(response);
+          clearTimeout(timeout);
+          if (html && html.length > 200) return html;
+        } catch (e) {
+          continue;
+        }
+      }
+      throw new Error('All CORS proxies failed. Try pasting the recipe text directly.');
+    }
+
+    /**
+     * Fetch a recipe page and extract structured recipe data.
+     * Strategy:
+     *   1. Try Schema.org JSON-LD (most recipe sites use this)
+     *   2. Fall back to extracting readable text for Claude
+     */
+    async function fetchRecipeFromUrl(url) {
+      if (!isSafeUrl(url)) throw new Error('URL appears to point to a private/internal address.');
+      const html = await fetchWithCorsProxy(url);
+      if (!html) throw new Error('Empty response from recipe page');
+
+      // Strategy 1: Extract JSON-LD Recipe schema
+      const recipeData = extractJsonLdRecipe(html);
+      if (recipeData) {
+        return {
+          source: 'schema',
+          text: formatSchemaRecipe(recipeData),
+          title: recipeData.name || null
+        };
+      }
+
+      // Strategy 2: Extract readable text content for Claude to parse
+      const readableText = extractReadableText(html);
+      if (readableText.length > 100) {
+        return {
+          source: 'text',
+          text: readableText.slice(0, 8000), // Limit to avoid huge prompts
+          title: extractPageTitle(html)
+        };
+      }
+
+      throw new Error('Could not extract recipe content from this page. Try pasting the recipe text directly.');
+    }
+
+    function extractJsonLdRecipe(html) {
+      // Find all JSON-LD script tags
+      const jsonLdRegex = /<script[^>]*type\s*=\s*["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+      let match;
+
+      while ((match = jsonLdRegex.exec(html)) !== null) {
+        try {
+          let parsed = JSON.parse(match[1]);
+
+          // Handle @graph arrays (common in WordPress/Yoast)
+          if (parsed['@graph']) {
+            parsed = parsed['@graph'];
+          }
+
+          // Handle arrays
+          if (Array.isArray(parsed)) {
+            const recipe = parsed.find(item =>
+              item['@type'] === 'Recipe' ||
+              (Array.isArray(item['@type']) && item['@type'].includes('Recipe'))
+            );
+            if (recipe) return recipe;
+          }
+
+          // Direct Recipe object
+          if (parsed['@type'] === 'Recipe' ||
+              (Array.isArray(parsed['@type']) && parsed['@type'].includes('Recipe'))) {
+            return parsed;
+          }
+        } catch (e) {
+          // Invalid JSON-LD, try next
+          continue;
+        }
+      }
+      return null;
+    }
+
+    function formatSchemaRecipe(recipe) {
+      const parts = [];
+
+      if (recipe.name) parts.push(`Recipe: ${recipe.name}`);
+      if (recipe.description) parts.push(`\nDescription: ${recipe.description}`);
+
+      // Prep/cook/total time
+      const times = [];
+      if (recipe.prepTime) times.push(`Prep: ${formatIsoDuration(recipe.prepTime)}`);
+      if (recipe.cookTime) times.push(`Cook: ${formatIsoDuration(recipe.cookTime)}`);
+      if (recipe.totalTime) times.push(`Total: ${formatIsoDuration(recipe.totalTime)}`);
+      if (times.length) parts.push(`\nTime: ${times.join(', ')}`);
+
+      if (recipe.recipeYield) {
+        const yield_ = Array.isArray(recipe.recipeYield) ? recipe.recipeYield[0] : recipe.recipeYield;
+        parts.push(`Servings: ${yield_}`);
+      }
+
+      // Ingredients
+      if (recipe.recipeIngredient && recipe.recipeIngredient.length) {
+        parts.push(`\nIngredients:`);
+        recipe.recipeIngredient.forEach(ing => {
+          parts.push(`- ${ing}`);
+        });
+      }
+
+      // Instructions
+      if (recipe.recipeInstructions) {
+        parts.push(`\nInstructions:`);
+        const instructions = recipe.recipeInstructions;
+
+        if (typeof instructions === 'string') {
+          parts.push(instructions);
+        } else if (Array.isArray(instructions)) {
+          instructions.forEach((step, i) => {
+            if (typeof step === 'string') {
+              parts.push(`${i + 1}. ${step}`);
+            } else if (step['@type'] === 'HowToStep') {
+              parts.push(`${i + 1}. ${step.text || step.name || ''}`);
+            } else if (step['@type'] === 'HowToSection') {
+              if (step.name) parts.push(`\n--- ${step.name} ---`);
+              if (step.itemListElement) {
+                step.itemListElement.forEach((subStep, j) => {
+                  const text = typeof subStep === 'string' ? subStep : (subStep.text || subStep.name || '');
+                  parts.push(`${j + 1}. ${text}`);
+                });
+              }
+            }
+          });
+        }
+      }
+
+      return parts.join('\n');
+    }
+
+    function formatIsoDuration(iso) {
+      // Convert PT30M, PT1H30M etc to readable format
+      if (!iso) return '';
+      const match = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+      if (!match) return iso;
+      const parts = [];
+      if (match[1]) parts.push(`${match[1]}h`);
+      if (match[2]) parts.push(`${match[2]}m`);
+      if (match[3]) parts.push(`${match[3]}s`);
+      return parts.join(' ') || iso;
+    }
+
+    function extractReadableText(html) {
+      // Cap input to prevent ReDoS on very large pages
+      const capped = html.slice(0, 500000);
+      let text = capped
+        .replace(/<script[\s\S]*?<\/script>/gi, '')
+        .replace(/<style[\s\S]*?<\/style>/gi, '')
+        .replace(/<nav[\s\S]*?<\/nav>/gi, '')
+        .replace(/<header[\s\S]*?<\/header>/gi, '')
+        .replace(/<footer[\s\S]*?<\/footer>/gi, '')
+        .replace(/<aside[\s\S]*?<\/aside>/gi, '')
+        .replace(/<[^>]+>/g, '\n')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&amp;/gi, '&')
+        .replace(/&lt;/gi, '<')
+        .replace(/&gt;/gi, '>')
+        .replace(/&#\d+;/g, '')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+      return text;
+    }
+
+    function extractPageTitle(html) {
+      const match = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+      return match ? match[1].trim().split('|')[0].split('-')[0].trim() : null;
+    }
+
     // ==================== RECIPE GENERATION ====================
     function loadCachedRecipes() {
       const cached = storage.get('cachedRecipes');
@@ -1982,12 +2211,28 @@ Example: Chicken stir fry with broccoli, bell peppers, and soy ginger sauce"></t
       // Show loading
       document.getElementById('setup-section').style.display = 'none';
       document.getElementById('loading-section').style.display = 'block';
-      document.getElementById('loading-text').textContent =
-        currentInputMode === 'photo' ? 'Reading your recipe...' : 'Creating your cooking timer...';
+
+      // Check if input contains a URL — if so, fetch the actual recipe first
+      let resolvedRecipeText = recipeInput;
+      const detectedUrl = currentInputMode === 'text' ? detectUrl(recipeInput) : null;
 
       try {
         const claudeModel = document.getElementById('claude-model').value;
         let response, data, text;
+
+        if (detectedUrl) {
+          document.getElementById('loading-text').textContent = 'Fetching recipe from URL...';
+          try {
+            const fetched = await fetchRecipeFromUrl(detectedUrl);
+            resolvedRecipeText = fetched.text;
+          } catch (fetchErr) {
+            console.warn('URL fetch failed, sending URL text to Claude:', fetchErr.message);
+            // Fall through — Claude will do its best with the URL text
+          }
+        }
+
+        document.getElementById('loading-text').textContent =
+          currentInputMode === 'photo' ? 'Reading your recipe...' : 'Creating your cooking timer...';
 
         // Build Claude message content directly
         const content = [];
@@ -2039,7 +2284,7 @@ STYLE: Write like Gordon Ramsay coaching someone in his kitchen:
         } else {
           content.push({
             type: 'text',
-            text: `Create a cooking timer for this recipe. Recipe: ${recipeInput}\n\n${jsonRules}`
+            text: `Create a cooking timer for the recipe provided between <recipe> tags.\n<recipe>\n${resolvedRecipeText}\n</recipe>\n\n${jsonRules}`
           });
         }
 
@@ -2155,7 +2400,9 @@ STYLE: Write like Gordon Ramsay coaching someone in his kitchen:
 
         // Track source for "Save to Library" feature
         lastRecipeSource = currentInputMode; // 'text' or 'photo'
-        lastRawRecipe = currentInputMode === 'photo' ? `[Photo of ${recipeTitle}]` : recipeInput;
+        lastRawRecipe = currentInputMode === 'photo'
+          ? `[Photo of ${recipeTitle}]`
+          : (detectedUrl ? resolvedRecipeText : recipeInput);
 
         // Cache and start
         cacheRecipe(recipe);
