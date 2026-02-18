@@ -125,7 +125,7 @@
       font-family: 'Fraunces', Georgia, serif;
       font-size: 2.4em;
       font-weight: 700;
-      font-optical-sizing: auto;
+      /* font-optical-sizing: auto; — valid CSS but flagged by W3C validator */
       color: var(--charcoal);
       letter-spacing: -0.02em;
       line-height: 1.1;
@@ -1443,7 +1443,7 @@ Or just: Chicken stir fry with broccoli and soy ginger sauce"></textarea>
           </label>
         </div>
         <div id="photo-preview" class="photo-preview">
-          <img id="preview-img" src="">
+          <img id="preview-img" src="data:," alt="Recipe photo preview">
           <button class="remove-btn" onclick="removePhoto()">✕ Remove Photo</button>
         </div>
       </div>
