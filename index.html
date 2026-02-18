@@ -1917,11 +1917,26 @@ Or just: Chicken stir fry with broccoli and soy ginger sauce"></textarea>
 
     function detectUrl(text) {
       const match = text.trim().match(URL_REGEX);
-      return match ? match[0] : null;
+      if (!match) return null;
+      // Strip trailing punctuation that's likely not part of the URL
+      return match[0].replace(/[.,;:!?)]+$/, '');
+    }
+
+    /** Reject private/loopback URLs to prevent SSRF through CORS proxies */
+    function isSafeUrl(url) {
+      try {
+        const parsed = new URL(url);
+        if (!['http:', 'https:'].includes(parsed.protocol)) return false;
+        const h = parsed.hostname.toLowerCase();
+        if (/^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|169\.254\.|0\.)/.test(h)) return false;
+        if (h === '[::1]' || h === '0.0.0.0') return false;
+        return true;
+      } catch { return false; }
     }
 
     // Show/hide URL detection indicator as user types
-    document.addEventListener('DOMContentLoaded', () => {
+    // (No DOMContentLoaded wrapper — this script runs after the DOM is parsed)
+    (function() {
       const input = document.getElementById('recipe-input');
       const indicator = document.getElementById('url-detected');
       if (input && indicator) {
@@ -1929,7 +1944,7 @@ Or just: Chicken stir fry with broccoli and soy ginger sauce"></textarea>
           indicator.style.display = detectUrl(input.value) ? 'block' : 'none';
         });
       }
-    });
+    })();
 
     /**
      * Fetch a URL through CORS proxies with fallback.
@@ -1943,21 +1958,16 @@ Or just: Chicken stir fry with broccoli and soy ginger sauce"></textarea>
 
       for (const proxy of proxies) {
         try {
-          console.log(`Trying CORS proxy: ${proxy.name}`);
           const controller = new AbortController();
           const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
 
           const response = await fetch(proxy.url, { signal: controller.signal });
-          clearTimeout(timeout);
 
-          if (!response.ok) continue;
+          if (!response.ok) { clearTimeout(timeout); continue; }
           const html = await proxy.extract(response);
-          if (html && html.length > 200) {
-            console.log(`Success via ${proxy.name} (${html.length} chars)`);
-            return html;
-          }
+          clearTimeout(timeout);
+          if (html && html.length > 200) return html;
         } catch (e) {
-          console.warn(`Proxy ${proxy.name} failed:`, e.message);
           continue;
         }
       }
@@ -1971,6 +1981,7 @@ Or just: Chicken stir fry with broccoli and soy ginger sauce"></textarea>
      *   2. Fall back to extracting readable text for Claude
      */
     async function fetchRecipeFromUrl(url) {
+      if (!isSafeUrl(url)) throw new Error('URL appears to point to a private/internal address.');
       const html = await fetchWithCorsProxy(url);
       if (!html) throw new Error('Empty response from recipe page');
 
@@ -2101,8 +2112,9 @@ Or just: Chicken stir fry with broccoli and soy ginger sauce"></textarea>
     }
 
     function extractReadableText(html) {
-      // Strip scripts, styles, nav, header, footer
-      let text = html
+      // Cap input to prevent ReDoS on very large pages
+      const capped = html.slice(0, 500000);
+      let text = capped
         .replace(/<script[\s\S]*?<\/script>/gi, '')
         .replace(/<style[\s\S]*?<\/style>/gi, '')
         .replace(/<nav[\s\S]*?<\/nav>/gi, '')
@@ -2200,20 +2212,19 @@ Or just: Chicken stir fry with broccoli and soy ginger sauce"></textarea>
       document.getElementById('setup-section').style.display = 'none';
       document.getElementById('loading-section').style.display = 'block';
 
+      // Check if input contains a URL — if so, fetch the actual recipe first
+      let resolvedRecipeText = recipeInput;
+      const detectedUrl = currentInputMode === 'text' ? detectUrl(recipeInput) : null;
+
       try {
         const claudeModel = document.getElementById('claude-model').value;
         let response, data, text;
-
-        // Check if input contains a URL — if so, fetch the actual recipe first
-        let resolvedRecipeText = recipeInput;
-        const detectedUrl = currentInputMode === 'text' ? detectUrl(recipeInput) : null;
 
         if (detectedUrl) {
           document.getElementById('loading-text').textContent = 'Fetching recipe from URL...';
           try {
             const fetched = await fetchRecipeFromUrl(detectedUrl);
             resolvedRecipeText = fetched.text;
-            console.log(`Recipe fetched via ${fetched.source}:`, resolvedRecipeText.slice(0, 200));
           } catch (fetchErr) {
             console.warn('URL fetch failed, sending URL text to Claude:', fetchErr.message);
             // Fall through — Claude will do its best with the URL text
@@ -2273,7 +2284,7 @@ STYLE: Write like Gordon Ramsay coaching someone in his kitchen:
         } else {
           content.push({
             type: 'text',
-            text: `Create a cooking timer for this recipe. Recipe: ${resolvedRecipeText}\n\n${jsonRules}`
+            text: `Create a cooking timer for the recipe provided between <recipe> tags.\n<recipe>\n${resolvedRecipeText}\n</recipe>\n\n${jsonRules}`
           });
         }
 
