@@ -480,6 +480,7 @@
       color: var(--charcoal-light);
       cursor: pointer;
       text-align: center;
+      font-family: inherit;
       font-size: 0.95em;
       font-weight: 600;
       transition: all 0.25s ease;
@@ -1408,11 +1409,11 @@
       </div>
 
       <!-- Input Mode Tabs -->
-      <div class="input-tabs">
-        <div class="input-tab active" onclick="setInputMode('text')">✍️ Type</div>
-        <div class="input-tab" onclick="setInputMode('photo')">📷 Photo</div>
-        <div class="input-tab" onclick="setInputMode('library')">📚 Library</div>
-      </div>
+      <nav class="input-tabs" aria-label="Recipe input method">
+        <button class="input-tab active" onclick="setInputMode('text')" aria-current="true">✍️ Type</button>
+        <button class="input-tab" onclick="setInputMode('photo')">📷 Photo</button>
+        <button class="input-tab" onclick="setInputMode('library')">📚 Library</button>
+      </nav>
 
       <!-- Text Input -->
       <div id="text-input" class="text-input active">
@@ -1520,9 +1521,9 @@ Or just: Chicken stir fry with broccoli and soy ginger sauce"></textarea>
 
   <!-- Floating Controls (top-right, always visible during cooking) -->
   <div class="controls" id="controls">
-    <button id="pause-btn" onclick="togglePause()" title="Pause/Resume">⏸</button>
-    <button id="reset-btn" onclick="resetTimer()" title="Reset Timer">↺</button>
-    <button id="new-btn" onclick="newRecipe()" title="New Recipe">✕</button>
+    <button id="pause-btn" onclick="togglePause()" title="Pause/Resume" aria-label="Pause or Resume">⏸</button>
+    <button id="reset-btn" onclick="resetTimer()" title="Reset Timer" aria-label="Reset Timer">↺</button>
+    <button id="new-btn" onclick="newRecipe()" title="New Recipe" aria-label="New Recipe">✕</button>
   </div>
 
   <script>
@@ -1687,12 +1688,15 @@ Or just: Chicken stir fry with broccoli and soy ginger sauce"></textarea>
     // ==================== INPUT MODES ====================
     function setInputMode(mode) {
       currentInputMode = mode;
-      document.querySelectorAll('.input-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.input-tab').forEach(t => {
+        t.classList.remove('active');
+        t.removeAttribute('aria-current');
+      });
       // Find the right tab to activate
       const tabs = document.querySelectorAll('.input-tab');
-      if (mode === 'text') tabs[0].classList.add('active');
-      else if (mode === 'photo') tabs[1].classList.add('active');
-      else if (mode === 'library') tabs[2].classList.add('active');
+      const activeTab = mode === 'text' ? tabs[0] : mode === 'photo' ? tabs[1] : tabs[2];
+      activeTab.classList.add('active');
+      activeTab.setAttribute('aria-current', 'true');
 
       document.getElementById('text-input').classList.toggle('active', mode === 'text');
       document.getElementById('photo-input').classList.toggle('active', mode === 'photo');
