@@ -690,6 +690,43 @@
       transform: translateX(4px);
     }
 
+    .library-backup {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .library-backup .btn-backup {
+      flex: 1;
+      background: white;
+      color: var(--charcoal);
+      border: 2px solid var(--cream-deep);
+      padding: 12px 16px;
+      font-size: 0.9em;
+      font-weight: 500;
+      font-family: inherit;
+      border-radius: 14px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .library-backup .btn-backup:hover {
+      border-color: var(--olive);
+      color: var(--olive);
+    }
+
+    .library-backup .btn-backup:active {
+      transform: scale(0.97);
+    }
+
+    .backup-status {
+      text-align: center;
+      margin-top: 10px;
+      font-size: 0.85em;
+      color: var(--olive);
+      min-height: 1.2em;
+    }
+
     .library-empty {
       text-align: center;
       padding: 40px 20px;
@@ -1456,6 +1493,12 @@ Or just: Chicken stir fry with broccoli and soy ginger sauce"></textarea>
             <p>Loading recipes...</p>
           </div>
         </div>
+        <div class="library-backup">
+          <button class="btn-backup" onclick="exportBackup()">⬇ Download Backup</button>
+          <button class="btn-backup" onclick="document.getElementById('import-file').click()">⬆ Restore Backup</button>
+          <input type="file" id="import-file" accept=".json" style="display:none" onchange="importBackup(this)">
+        </div>
+        <div id="backup-status" class="backup-status"></div>
       </div>
 
       <button id="generate-btn" class="btn-primary" onclick="generateTimer()">Generate Timer</button>
@@ -2432,6 +2475,87 @@ STYLE: Write like Gordon Ramsay coaching someone in his kitchen:
 
     function saveActiveRecipe() {
       storage.set('activeRecipe', JSON.stringify({ title: recipeTitle, steps }));
+    }
+
+    // ==================== BACKUP / RESTORE ====================
+    function exportBackup() {
+      const statusEl = document.getElementById('backup-status');
+      try {
+        const backup = {
+          version: 1,
+          exported: new Date().toISOString(),
+          cachedRecipes: JSON.parse(storage.get('cachedRecipes') || '[]'),
+          activeRecipe: JSON.parse(storage.get('activeRecipe') || 'null'),
+          libraryRecipes: libraryRecipes || []
+        };
+
+        const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const date = new Date().toISOString().slice(0, 10);
+        a.download = `recipe-timer-backup-${date}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        statusEl.textContent = `Backup downloaded (${backup.cachedRecipes.length} cached + ${backup.libraryRecipes.length} library recipes)`;
+      } catch (err) {
+        statusEl.textContent = `Export failed: ${err.message}`;
+        statusEl.style.color = 'var(--terracotta)';
+      }
+    }
+
+    function importBackup(input) {
+      const statusEl = document.getElementById('backup-status');
+      const file = input.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const backup = JSON.parse(e.target.result);
+
+          // Validate structure
+          if (!backup.cachedRecipes && !backup.activeRecipe && !backup.libraryRecipes) {
+            throw new Error('Invalid backup file — no recipe data found');
+          }
+
+          // Restore cached recipes (merge, deduplicate by title)
+          let restoredCount = 0;
+          if (backup.cachedRecipes && backup.cachedRecipes.length > 0) {
+            let existing = JSON.parse(storage.get('cachedRecipes') || '[]');
+            for (const recipe of backup.cachedRecipes) {
+              if (!existing.some(r => r.title === recipe.title)) {
+                existing.push(recipe);
+                restoredCount++;
+              }
+            }
+            existing = existing.slice(0, 10);
+            storage.set('cachedRecipes', JSON.stringify(existing));
+          }
+
+          // Restore active recipe if none currently active
+          if (backup.activeRecipe && !storage.get('activeRecipe')) {
+            storage.set('activeRecipe', JSON.stringify(backup.activeRecipe));
+          }
+
+          statusEl.style.color = 'var(--olive)';
+          statusEl.textContent = `Restored ${restoredCount} new recipes` +
+            (restoredCount === 0 ? ' (all already present)' : '');
+
+          // Refresh the cached recipes display
+          loadCachedRecipes();
+        } catch (err) {
+          statusEl.style.color = 'var(--terracotta)';
+          statusEl.textContent = `Import failed: ${err.message}`;
+        }
+      };
+      reader.readAsText(file);
+
+      // Reset input so same file can be re-imported
+      input.value = '';
     }
 
     // ==================== TIMER ====================
