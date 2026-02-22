@@ -2,7 +2,7 @@
 
 A voice-enabled cooking timer that turns recipes into step-by-step countdowns. Paste a recipe, get timed steps with audio announcements. Zero dependencies, works offline.
 
-**Live**: [teamytastic.github.io/recipe-timer](https://teamytastic.github.io/recipe-timer/)
+**Live**: [camekazi.github.io/recipe-timer](https://camekazi.github.io/recipe-timer/)
 
 ## What It Does
 
