@@ -1377,6 +1377,168 @@
       .current-step h2 { font-size: 1.4em; }
       .card { padding: 22px; }
     }
+
+    /* ==================== COOK TWO THINGS ==================== */
+    /* Mode toggle pill — sits above the input tabs */
+    .mode-toggle {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      background: var(--cream-dark);
+      border-radius: 12px;
+      padding: 4px;
+      margin-bottom: 20px;
+      width: 100%;
+    }
+
+    .mode-toggle-btn {
+      flex: 1;
+      padding: 10px 12px;
+      background: transparent;
+      border: none;
+      border-radius: 9px;
+      color: var(--charcoal-light);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.88em;
+      font-weight: 600;
+      transition: all 0.2s ease;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .mode-toggle-btn.active {
+      background: white;
+      color: var(--charcoal);
+      box-shadow: 0 2px 8px var(--shadow);
+    }
+
+    /* Two-recipe input grid */
+    .two-recipe-inputs {
+      display: none;
+    }
+
+    .two-recipe-inputs.active {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    @media (max-width: 520px) {
+      .two-recipe-inputs.active {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .recipe-slot {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .recipe-slot-label {
+      font-size: 0.78em;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 8px;
+      display: inline-block;
+      align-self: flex-start;
+    }
+
+    .recipe-slot-label.dish-a {
+      background: rgba(90, 111, 74, 0.14);
+      color: var(--olive-dark);
+    }
+
+    .recipe-slot-label.dish-b {
+      background: rgba(196, 97, 74, 0.14);
+      color: var(--terracotta-dark);
+    }
+
+    .recipe-slot textarea {
+      width: 100%;
+      padding: 14px 16px;
+      border: 2px solid var(--cream-deep);
+      border-radius: 14px;
+      background: var(--cream);
+      color: var(--charcoal);
+      font-size: 0.95em;
+      font-family: inherit;
+      min-height: 130px;
+      resize: vertical;
+      line-height: 1.6;
+      transition: all 0.25s ease;
+    }
+
+    .recipe-slot.dish-a-slot textarea:focus {
+      outline: none;
+      border-color: var(--olive);
+      background: white;
+      box-shadow: 0 0 0 4px rgba(90, 111, 74, 0.12);
+    }
+
+    .recipe-slot.dish-b-slot textarea:focus {
+      outline: none;
+      border-color: var(--terracotta);
+      background: white;
+      box-shadow: 0 0 0 4px rgba(196, 97, 74, 0.12);
+    }
+
+    .recipe-slot textarea::placeholder {
+      color: var(--charcoal-light);
+      opacity: 0.5;
+    }
+
+    /* Dish badge shown on steps */
+    .dish-badge {
+      display: inline-block;
+      font-size: 0.7em;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      padding: 3px 9px;
+      border-radius: 10px;
+      margin-top: 8px;
+      text-transform: uppercase;
+    }
+
+    .dish-badge.dish-a {
+      background: rgba(90, 111, 74, 0.18);
+      color: var(--olive-dark);
+    }
+
+    .dish-badge.dish-b {
+      background: rgba(196, 97, 74, 0.18);
+      color: var(--terracotta-dark);
+    }
+
+    /* In the timer: current step dish badge */
+    .current-step .dish-badge {
+      background: rgba(255, 255, 255, 0.2);
+      color: rgba(255, 255, 255, 0.95);
+    }
+
+    /* Timeline dish stripe — left-border accent per dish */
+    .timeline-step.dish-a-step {
+      border-left: 3px solid var(--olive);
+      padding-left: 12px;
+    }
+
+    .timeline-step.dish-b-step {
+      border-left: 3px solid var(--terracotta);
+      padding-left: 12px;
+    }
+
+    /* Upcoming steps dish accent */
+    .upcoming-step.dish-a-step {
+      border-left-color: var(--olive);
+    }
+
+    .upcoming-step.dish-b-step {
+      border-left-color: var(--terracotta);
+    }
   </style>
 </head>
 <body>
@@ -1445,14 +1607,20 @@
         </div>
       </div>
 
+      <!-- Recipe Mode Toggle: One vs Two Recipes -->
+      <div class="mode-toggle" role="group" aria-label="Recipe mode">
+        <button class="mode-toggle-btn active" id="mode-one-btn" onclick="setRecipeMode('one')">🍳 One Recipe</button>
+        <button class="mode-toggle-btn" id="mode-two-btn" onclick="setRecipeMode('two')">🍳🥗 Cook Two Things</button>
+      </div>
+
       <!-- Input Mode Tabs -->
-      <nav class="input-tabs" aria-label="Recipe input method">
+      <nav class="input-tabs" aria-label="Recipe input method" id="input-tabs-nav">
         <button class="input-tab active" onclick="setInputMode('text')" aria-current="true">✍️ Type</button>
         <button class="input-tab" onclick="setInputMode('photo')">📷 Photo</button>
         <button class="input-tab" onclick="setInputMode('library')">📚 Library</button>
       </nav>
 
-      <!-- Text Input -->
+      <!-- Text Input (single recipe) -->
       <div id="text-input" class="text-input active">
         <div class="input-group">
           <label>What are you making?</label>
@@ -1463,6 +1631,22 @@ Or just: Chicken stir fry with broccoli and soy ginger sauce"></textarea>
           <small id="url-detected" style="display:none; color: var(--olive); font-weight: 600;">
             🔗 URL detected — will fetch the actual recipe from the page
           </small>
+        </div>
+      </div>
+
+      <!-- Two Recipes Input (shown in Cook Two Things mode) -->
+      <div id="two-recipe-inputs" class="two-recipe-inputs">
+        <div class="recipe-slot dish-a-slot">
+          <span class="recipe-slot-label dish-a">Dish 1</span>
+          <textarea id="recipe-input-a" placeholder="First dish — paste a URL or describe it.
+
+E.g. Roast chicken thighs with garlic"></textarea>
+        </div>
+        <div class="recipe-slot dish-b-slot">
+          <span class="recipe-slot-label dish-b">Dish 2</span>
+          <textarea id="recipe-input-b" placeholder="Second dish — paste a URL or describe it.
+
+E.g. Roasted broccoli with lemon"></textarea>
         </div>
       </div>
 
@@ -1587,6 +1771,7 @@ Or just: Chicken stir fry with broccoli and soy ginger sauce"></textarea>
     let isPaused = false;
     let intervalId = null;
     let currentInputMode = 'text';
+    let currentRecipeMode = 'one'; // 'one' | 'two'
     let selectedPhoto = null;
     let pendingResumeData = null;
     let libraryLoaded = false;
@@ -1726,6 +1911,36 @@ Or just: Chicken stir fry with broccoli and soy ginger sauce"></textarea>
 
     function expandApiKey() {
       document.getElementById('api-key-section').classList.remove('collapsed');
+    }
+
+    // ==================== RECIPE MODE (one vs two) ====================
+    function setRecipeMode(mode) {
+      currentRecipeMode = mode;
+
+      document.getElementById('mode-one-btn').classList.toggle('active', mode === 'one');
+      document.getElementById('mode-two-btn').classList.toggle('active', mode === 'two');
+
+      const twoInputs = document.getElementById('two-recipe-inputs');
+      const tabsNav = document.getElementById('input-tabs-nav');
+      const textInput = document.getElementById('text-input');
+      const photoInput = document.getElementById('photo-input');
+      const libraryInput = document.getElementById('library-input');
+
+      if (mode === 'two') {
+        // Show two-recipe inputs, hide single-recipe tabs
+        twoInputs.classList.add('active');
+        tabsNav.style.display = 'none';
+        textInput.classList.remove('active');
+        photoInput.classList.remove('active');
+        libraryInput.classList.remove('active');
+        document.getElementById('generate-btn').style.display = 'block';
+      } else {
+        // Show single-recipe tabs, hide two-recipe inputs
+        twoInputs.classList.remove('active');
+        tabsNav.style.display = 'flex';
+        // Re-apply current single tab state
+        setInputMode(currentInputMode);
+      }
     }
 
     // ==================== INPUT MODES ====================
@@ -2184,6 +2399,69 @@ Or just: Chicken stir fry with broccoli and soy ginger sauce"></textarea>
       return match ? match[1].trim().split('|')[0].split('-')[0].trim() : null;
     }
 
+    // ==================== JSON UTILITIES ====================
+    // Repair malformed JSON (common with LLM responses)
+    function repairJson(str) {
+      // Remove trailing incomplete strings (cut off mid-string)
+      str = str.replace(/,\s*"[^"]*$/, '');  // Remove trailing incomplete key
+      str = str.replace(/:\s*"[^"]*$/, ': ""');  // Complete incomplete string value
+
+      // Fix trailing commas before ] or }
+      str = str.replace(/,\s*([\]}])/g, '$1');
+
+      // Quote unquoted property names (e.g., {title: "x"} → {"title": "x"})
+      str = str.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":');
+
+      // Convert single quotes to double quotes for string values
+      str = str.replace(/:\s*'([^']*)'/g, ': "$1"');
+
+      // Find where JSON properly ends (when brackets/braces return to 0)
+      let braces = 0, brackets = 0;
+      let inString = false;
+      let escaped = false;
+      let jsonEndIdx = -1;
+
+      for (let i = 0; i < str.length; i++) {
+        const char = str[i];
+        if (escaped) { escaped = false; continue; }
+        if (char === '\\') { escaped = true; continue; }
+        if (char === '"') { inString = !inString; continue; }
+        if (inString) continue;
+
+        if (char === '{') braces++;
+        if (char === '}') braces--;
+        if (char === '[') brackets++;
+        if (char === ']') brackets--;
+
+        if (braces === 0 && brackets === 0 && i > 0) {
+          jsonEndIdx = i + 1;
+          break;
+        }
+      }
+
+      if (jsonEndIdx > 0) {
+        str = str.slice(0, jsonEndIdx);
+      } else {
+        // JSON is truncated — add missing closers
+        braces = 0; brackets = 0; inString = false; escaped = false;
+        for (let i = 0; i < str.length; i++) {
+          const char = str[i];
+          if (escaped) { escaped = false; continue; }
+          if (char === '\\') { escaped = true; continue; }
+          if (char === '"') { inString = !inString; continue; }
+          if (inString) continue;
+          if (char === '{') braces++;
+          if (char === '}') braces--;
+          if (char === '[') brackets++;
+          if (char === ']') brackets--;
+        }
+        while (brackets > 0) { str += ']'; brackets--; }
+        while (braces > 0) { str += '}'; braces--; }
+      }
+
+      return str;
+    }
+
     // ==================== RECIPE GENERATION ====================
     function loadCachedRecipes() {
       const cached = storage.get('cachedRecipes');
@@ -2219,7 +2497,6 @@ Or just: Chicken stir fry with broccoli and soy ginger sauce"></textarea>
 
     async function generateTimer() {
       const inputValue = document.getElementById('api-key').value.trim();
-      const recipeInput = document.getElementById('recipe-input').value.trim();
       const errorEl = document.getElementById('error-msg');
 
       // Use saved key from localStorage, or new key from input
@@ -2234,6 +2511,33 @@ Or just: Chicken stir fry with broccoli and soy ginger sauce"></textarea>
         errorEl.textContent = 'Please enter your Claude API key';
         return;
       }
+
+      // ── Two-recipe mode validation ──
+      if (currentRecipeMode === 'two') {
+        const recipeA = document.getElementById('recipe-input-a').value.trim();
+        const recipeB = document.getElementById('recipe-input-b').value.trim();
+        if (!recipeA || !recipeB) {
+          errorEl.textContent = 'Please describe both dishes before generating';
+          return;
+        }
+        errorEl.textContent = '';
+        if (isNewKey) {
+          storage.set('claudeApiKey', apiKey);
+          const input = document.getElementById('api-key');
+          input.value = maskApiKey(apiKey);
+          input.readOnly = true;
+          input.style.color = '#888';
+          collapseApiKey();
+        }
+        document.getElementById('setup-section').style.display = 'none';
+        document.getElementById('loading-section').style.display = 'block';
+        document.getElementById('loading-text').textContent = 'Planning your two-dish meal...';
+        await generateTwoRecipeTimer(apiKey, recipeA, recipeB);
+        return;
+      }
+
+      // ── Single-recipe validation ──
+      const recipeInput = document.getElementById('recipe-input').value.trim();
       if (currentInputMode === 'text' && !recipeInput) {
         errorEl.textContent = 'Please describe what you\'re cooking';
         return;
@@ -2373,73 +2677,6 @@ STYLE: Write like Gordon Ramsay coaching someone in his kitchen:
         }
         jsonStr = jsonStr.slice(startIdx);
 
-        // Repair malformed JSON (common with LLM responses)
-        function repairJson(str) {
-          // Remove trailing incomplete strings (cut off mid-string)
-          str = str.replace(/,\s*"[^"]*$/, '');  // Remove trailing incomplete key
-          str = str.replace(/:\s*"[^"]*$/, ': ""');  // Complete incomplete string value
-
-          // Fix trailing commas before ] or }
-          str = str.replace(/,\s*([\]}])/g, '$1');
-
-          // Quote unquoted property names (e.g., {title: "x"} → {"title": "x"})
-          str = str.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":');
-
-          // Convert single quotes to double quotes (outside of double-quoted strings)
-          // Simple approach: replace 'value' with "value" for string values
-          str = str.replace(/:\s*'([^']*)'/g, ': "$1"');
-
-          // Find where JSON properly ends (when brackets/braces return to 0)
-          // This handles BOTH trailing garbage AND truncated JSON
-          let braces = 0, brackets = 0;
-          let inString = false;
-          let escaped = false;
-          let jsonEndIdx = -1;
-
-          for (let i = 0; i < str.length; i++) {
-            const char = str[i];
-            if (escaped) { escaped = false; continue; }
-            if (char === '\\') { escaped = true; continue; }
-            if (char === '"') { inString = !inString; continue; }
-            if (inString) continue;
-
-            if (char === '{') braces++;
-            if (char === '}') braces--;
-            if (char === '[') brackets++;
-            if (char === ']') brackets--;
-
-            // Found the end of valid JSON (balanced and back to 0)
-            if (braces === 0 && brackets === 0 && i > 0) {
-              jsonEndIdx = i + 1;
-              break;
-            }
-          }
-
-          // If we found a valid end point, truncate trailing garbage
-          if (jsonEndIdx > 0) {
-            str = str.slice(0, jsonEndIdx);
-          } else {
-            // JSON is truncated - add missing closers
-            // Re-count since we may have modified str above
-            braces = 0; brackets = 0; inString = false; escaped = false;
-            for (let i = 0; i < str.length; i++) {
-              const char = str[i];
-              if (escaped) { escaped = false; continue; }
-              if (char === '\\') { escaped = true; continue; }
-              if (char === '"') { inString = !inString; continue; }
-              if (inString) continue;
-              if (char === '{') braces++;
-              if (char === '}') braces--;
-              if (char === '[') brackets++;
-              if (char === ']') brackets--;
-            }
-            while (brackets > 0) { str += ']'; brackets--; }
-            while (braces > 0) { str += '}'; braces--; }
-          }
-
-          return str;
-        }
-
         jsonStr = repairJson(jsonStr);
         const recipe = JSON.parse(jsonStr);
         steps = recipe.steps;
@@ -2459,6 +2696,134 @@ STYLE: Write like Gordon Ramsay coaching someone in his kitchen:
       } catch (err) {
         console.error('Recipe generation error:', err);
         console.error('Raw text was:', typeof text !== 'undefined' ? text : '(no response)');
+        document.getElementById('loading-section').style.display = 'none';
+        document.getElementById('setup-section').style.display = 'block';
+        errorEl.textContent = `Error: ${err.message}`;
+      }
+    }
+
+    // ==================== TWO-RECIPE GENERATION ====================
+    async function generateTwoRecipeTimer(apiKey, recipeAText, recipeBText) {
+      const errorEl = document.getElementById('error-msg');
+
+      try {
+        const claudeModel = document.getElementById('claude-model').value;
+
+        // Resolve URLs for both recipes
+        let resolvedA = recipeAText;
+        let resolvedB = recipeBText;
+
+        const urlA = detectUrl(recipeAText);
+        const urlB = detectUrl(recipeBText);
+
+        if (urlA) {
+          document.getElementById('loading-text').textContent = 'Fetching Dish 1 from URL...';
+          try { resolvedA = (await fetchRecipeFromUrl(urlA)).text; } catch (e) { /* fall through */ }
+        }
+        if (urlB) {
+          document.getElementById('loading-text').textContent = 'Fetching Dish 2 from URL...';
+          try { resolvedB = (await fetchRecipeFromUrl(urlB)).text; } catch (e) { /* fall through */ }
+        }
+
+        document.getElementById('loading-text').textContent = 'Creating your two-dish plan...';
+
+        const twoRecipePrompt = `You are coordinating two dishes that must finish at the same time.
+
+<dish_1>
+${resolvedA}
+</dish_1>
+
+<dish_2>
+${resolvedB}
+</dish_2>
+
+Your job:
+1. Work out the total time for each dish (including prep).
+2. Determine the longer dish — that one starts at time 0.
+3. Delay the shorter dish's start so BOTH finish at the same time.
+4. Where one dish has passive time (oven, simmer, resting), schedule the other dish's active steps into those windows.
+5. Merge all steps from both dishes into a single chronological timeline.
+6. Label every step with which dish it belongs to using the "dish" field — use a short version of the dish name (e.g. "Chicken" or "Broccoli").
+
+Return ONLY valid JSON, no markdown.
+
+Return this exact JSON structure:
+{
+  "title": "Dish 1 Name & Dish 2 Name",
+  "totalMinutes": 45,
+  "steps": [
+    {"time": 0, "title": "Step name", "detail": "What to do", "duration": 300, "dish": "Dish 1 short name"},
+    {"time": 300, "title": "Next step", "detail": "Instructions", "duration": 180, "dish": "Dish 2 short name"}
+  ]
+}
+
+Rules:
+- time = seconds from start when step begins
+- duration = how long this step takes in seconds (use realistic durations)
+- dish = short label for which dish this step belongs to (REQUIRED on every step)
+- Steps must be sorted by ascending time
+- Parallel steps (same time value) are allowed when the cook truly can do them simultaneously
+- Avoid overlapping ACTIVE steps — passive steps (oven, simmer) can overlap with active steps
+- Each step should be ONE single action
+- Keep each step title under 6 words
+- Keep each step detail under 80 characters
+
+STYLE: Write like Gordon Ramsay coaching someone in his kitchen:
+- Use CAPS for emphasis on key words (SEARING hot, PERFECTLY golden, MOVE IT)
+- Be urgent and direct — no fluff, every second counts
+- Add his signature intensity: "Come on!", "Let's GO!", "Beautiful!"
+- Keep the energy HIGH throughout`;
+
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true'
+          },
+          body: JSON.stringify({
+            model: claudeModel,
+            max_tokens: 8192,
+            messages: [{ role: 'user', content: [{ type: 'text', text: twoRecipePrompt }] }]
+          })
+        });
+
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.error?.message || 'Claude API request failed');
+        }
+
+        const data = await response.json();
+        const text = data.content[0].text;
+
+        // Parse JSON
+        let jsonStr = text;
+        if (text.includes('```')) {
+          jsonStr = text.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
+        }
+        const startIdx = jsonStr.indexOf('{');
+        if (startIdx === -1) throw new Error('No JSON found in response');
+        jsonStr = repairJson(jsonStr.slice(startIdx));
+        const recipe = JSON.parse(jsonStr);
+
+        // Derive dish labels from the first two unique dish values
+        const dishValues = [...new Set(recipe.steps.map(s => s.dish).filter(Boolean))];
+        // Store on recipe for display in done screen
+        recipe.isDualDish = true;
+        recipe.dishLabels = dishValues;
+
+        steps = recipe.steps;
+        recipeTitle = recipe.title;
+        lastRecipeSource = 'text';
+        lastRawRecipe = `[Two dishes: ${recipe.title}]`;
+
+        cacheRecipe(recipe);
+        saveActiveRecipe();
+        startCooking();
+
+      } catch (err) {
+        console.error('Two-recipe generation error:', err);
         document.getElementById('loading-section').style.display = 'none';
         document.getElementById('setup-section').style.display = 'block';
         errorEl.textContent = `Error: ${err.message}`;
@@ -2558,6 +2923,34 @@ STYLE: Write like Gordon Ramsay coaching someone in his kitchen:
       input.value = '';
     }
 
+    // ==================== DISH BADGE HELPERS ====================
+    // Maps dish label → CSS class ('dish-a' or 'dish-b').
+    // Built once per cook session from the first two unique dish values in steps[].
+    let dishColorMap = {};
+
+    function buildDishColorMap() {
+      dishColorMap = {};
+      let count = 0;
+      for (const step of steps) {
+        if (step.dish && !dishColorMap[step.dish]) {
+          dishColorMap[step.dish] = count === 0 ? 'dish-a' : 'dish-b';
+          count++;
+          if (count >= 2) break;
+        }
+      }
+    }
+
+    function getDishClass(dishLabel) {
+      if (!dishLabel) return '';
+      return dishColorMap[dishLabel] || 'dish-a';
+    }
+
+    function getDishBadgeHtml(dishLabel, extraClass) {
+      if (!dishLabel) return '';
+      const cls = getDishClass(dishLabel);
+      return `<span class="dish-badge ${cls} ${extraClass || ''}">${dishLabel}</span>`;
+    }
+
     // ==================== TIMER ====================
     function startCooking() {
       const saved = storage.get('timerStartTime');
@@ -2584,6 +2977,9 @@ STYLE: Write like Gordon Ramsay coaching someone in his kitchen:
 
       // Initialize beep tracker
       lastBeepIndex = -1;
+
+      // Build dish→color map for two-dish mode
+      buildDishColorMap();
 
       // Keep screen on during cooking
       requestWakeLock();
@@ -2736,6 +3132,7 @@ STYLE: Write like Gordon Ramsay coaching someone in his kitchen:
       document.getElementById('current-step').innerHTML = `
         <h2>${current.title}</h2>
         <p>${current.detail}</p>
+        ${current.dish ? getDishBadgeHtml(current.dish) : ''}
         ${showFooter ? `<div class="step-footer">
           ${hasTimeRemaining ? `<div class="duration">⏱ ${formatTime(Math.max(0, remaining))} remaining</div>` : ''}
           ${hasNextStep ? `<div class="step-actions"><button class="done-btn" onclick="skipCurrentStep()">Next →</button></div>` : ''}
@@ -2749,11 +3146,13 @@ STYLE: Write like Gordon Ramsay coaching someone in his kitchen:
         const shortDetail = step.detail.length > 120 ? step.detail.substring(0, 120) + '...' : step.detail;
         // State: imminent (<10s) > soon (<60s) > normal
         const stateClass = countdown < 10 ? 'imminent' : countdown < 60 ? 'soon' : '';
+        const dishClass = step.dish ? getDishClass(step.dish) + '-step' : '';
         return `
-          <div class="upcoming-step ${stateClass}">
+          <div class="upcoming-step ${stateClass} ${dishClass}">
             <div class="step-content">
               <div class="title">${step.title}</div>
               <div class="detail">${shortDetail}</div>
+              ${step.dish ? getDishBadgeHtml(step.dish) : ''}
             </div>
             <div class="countdown">${formatTime(countdown)}</div>
           </div>
@@ -2768,15 +3167,19 @@ STYLE: Write like Gordon Ramsay coaching someone in his kitchen:
     }
 
     function renderTimeline() {
-      document.getElementById('timeline').innerHTML = steps.map((step, i) => `
-        <div class="timeline-step" data-index="${i}">
-          <div class="timeline-time">${formatClockTime(step.time)}</div>
-          <div class="timeline-content">
-            <div class="timeline-title">${step.title}</div>
-            <div class="timeline-detail">${step.detail}</div>
+      document.getElementById('timeline').innerHTML = steps.map((step, i) => {
+        const dishClass = step.dish ? getDishClass(step.dish) + '-step' : '';
+        return `
+          <div class="timeline-step ${dishClass}" data-index="${i}">
+            <div class="timeline-time">${formatClockTime(step.time)}</div>
+            <div class="timeline-content">
+              <div class="timeline-title">${step.title}</div>
+              <div class="timeline-detail">${step.detail}</div>
+              ${step.dish ? getDishBadgeHtml(step.dish) : ''}
+            </div>
           </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
   </script>
 </body>
