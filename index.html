@@ -1378,6 +1378,117 @@
       .card { padding: 22px; }
     }
 
+    /* ==================== READY BY TIME ==================== */
+    .ready-by-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      padding: 14px 18px;
+      background: var(--cream-dark);
+      border-radius: 14px;
+      border: 2px solid var(--cream-deep);
+      transition: border-color 0.2s ease;
+    }
+
+    .ready-by-row:focus-within {
+      border-color: var(--gold);
+    }
+
+    .ready-by-row label {
+      font-size: 0.88em;
+      font-weight: 600;
+      color: var(--charcoal-light);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .ready-by-row input[type="time"] {
+      flex: 1;
+      border: none;
+      background: transparent;
+      font-family: 'Fraunces', Georgia, serif;
+      font-size: 1.1em;
+      font-weight: 600;
+      color: var(--charcoal);
+      padding: 0;
+      min-width: 0;
+      cursor: pointer;
+    }
+
+    .ready-by-row input[type="time"]:focus {
+      outline: none;
+    }
+
+    .ready-by-row .ready-by-hint {
+      font-size: 0.78em;
+      color: var(--charcoal-light);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* Scheduled start time shown on each step card */
+    .scheduled-at {
+      font-size: 0.82em;
+      color: rgba(255,255,255,0.7);
+      margin-top: 6px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .upcoming-step .scheduled-at {
+      color: var(--charcoal-light);
+      font-size: 0.8em;
+      margin-top: 4px;
+    }
+
+    .timeline-step .scheduled-at {
+      color: var(--charcoal-light);
+      font-size: 0.8em;
+      margin-top: 2px;
+    }
+
+    /* Late indicator badges */
+    .late-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.72em;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      padding: 3px 9px;
+      border-radius: 10px;
+      margin-left: 6px;
+      white-space: nowrap;
+    }
+
+    .late-badge.late-amber {
+      background: rgba(212, 165, 116, 0.25);
+      color: #8a6028;
+    }
+
+    .current-step .late-badge.late-amber {
+      background: rgba(255, 255, 255, 0.18);
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .late-badge.late-red {
+      background: rgba(196, 97, 74, 0.2);
+      color: var(--terracotta-dark);
+    }
+
+    .current-step .late-badge.late-red {
+      background: rgba(255, 255, 255, 0.22);
+      color: white;
+      animation: latePulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes latePulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
     /* ==================== COOK TWO THINGS ==================== */
     /* Mode toggle pill — sits above the input tabs */
     .mode-toggle {
@@ -1685,6 +1796,13 @@ E.g. Roasted broccoli with lemon"></textarea>
         <div id="backup-status" class="backup-status"></div>
       </div>
 
+      <!-- Ready by time (optional) -->
+      <div class="ready-by-row">
+        <label for="ready-by-time">⏰ Ready by</label>
+        <input type="time" id="ready-by-time" placeholder="--:--">
+        <span class="ready-by-hint">Optional</span>
+      </div>
+
       <button id="generate-btn" class="btn-primary" onclick="generateTimer()">Generate Timer</button>
       <div id="error-msg" class="error-msg"></div>
     </div>
@@ -1776,6 +1894,7 @@ E.g. Roasted broccoli with lemon"></textarea>
     let pendingResumeData = null;
     let libraryLoaded = false;
     let libraryRecipes = [];
+    let readyByTime = null; // "HH:MM" string when set, null otherwise
 
     // Gist-based recipe library (editable via GitHub web UI)
     const RECIPES_GIST_ID = 'd6a0727d538dbe13689aabf6baae0ac4';
@@ -2512,6 +2631,9 @@ E.g. Roasted broccoli with lemon"></textarea>
         return;
       }
 
+      // Capture ready-by time (shared by both single and two-recipe modes)
+      readyByTime = document.getElementById('ready-by-time').value || null;
+
       // ── Two-recipe mode validation ──
       if (currentRecipeMode === 'two') {
         const recipeA = document.getElementById('recipe-input-a').value.trim();
@@ -2587,6 +2709,16 @@ E.g. Roasted broccoli with lemon"></textarea>
 
         // Build Claude message content directly
         const content = [];
+
+        // Build scheduledAt instruction when ready-by is set
+        const readyByInstruction = readyByTime
+          ? `\nThe user needs this meal ready by ${readyByTime}. Work backwards from that time to assign an absolute wall-clock start time to each step. Add a "scheduledAt" field (format "HH:MM") to every step — this is the clock time when that step should start. The last step should finish at or just before ${readyByTime}.`
+          : '';
+
+        const scheduledAtExample = readyByTime
+          ? `, "scheduledAt": "18:45"`
+          : '';
+
         const jsonRules = `Return ONLY valid JSON, no markdown.
 
 Return this exact JSON structure:
@@ -2594,8 +2726,8 @@ Return this exact JSON structure:
   "title": "Recipe Name",
   "totalMinutes": 30,
   "steps": [
-    {"time": 0, "title": "Step name", "detail": "What to do", "duration": 300},
-    {"time": 300, "title": "Next step", "detail": "Instructions", "duration": 180}
+    {"time": 0, "title": "Step name", "detail": "What to do", "duration": 300${scheduledAtExample}},
+    {"time": 300, "title": "Next step", "detail": "Instructions", "duration": 180${scheduledAtExample}}
   ]
 }
 
@@ -2604,7 +2736,7 @@ Rules:
 - duration = how long this step takes in seconds
 - Each step's time should equal previous step's time + duration
 - Include prep, cooking, and any resting time
-- Be realistic about timing
+- Be realistic about timing${readyByInstruction}
 - IMPORTANT: Each step should be ONE single action (not multiple)
 - Bad: "Chop onions, mince garlic, and slice peppers"
 - Good: Split into 3 separate steps: "Chop onions", "Mince garlic", "Slice peppers"
@@ -2727,6 +2859,14 @@ STYLE: Write like Gordon Ramsay coaching someone in his kitchen:
 
         document.getElementById('loading-text').textContent = 'Creating your two-dish plan...';
 
+        // Build scheduledAt instruction for two-recipe mode when ready-by is set
+        const twoReadyByInstruction = readyByTime
+          ? `\n7. The user needs BOTH dishes ready by ${readyByTime}. Work backwards from that time so the merged timeline finishes at or before ${readyByTime}. Add a "scheduledAt" field (format "HH:MM") to every step — this is the absolute wall-clock time when that step should start.`
+          : '';
+
+        const twoScheduledAtExample = readyByTime
+          ? `, "scheduledAt": "18:45"` : '';
+
         const twoRecipePrompt = `You are coordinating two dishes that must finish at the same time.
 
 <dish_1>
@@ -2743,7 +2883,7 @@ Your job:
 3. Delay the shorter dish's start so BOTH finish at the same time.
 4. Where one dish has passive time (oven, simmer, resting), schedule the other dish's active steps into those windows.
 5. Merge all steps from both dishes into a single chronological timeline.
-6. Label every step with which dish it belongs to using the "dish" field — use a short version of the dish name (e.g. "Chicken" or "Broccoli").
+6. Label every step with which dish it belongs to using the "dish" field — use a short version of the dish name (e.g. "Chicken" or "Broccoli").${twoReadyByInstruction}
 
 Return ONLY valid JSON, no markdown.
 
@@ -2752,8 +2892,8 @@ Return this exact JSON structure:
   "title": "Dish 1 Name & Dish 2 Name",
   "totalMinutes": 45,
   "steps": [
-    {"time": 0, "title": "Step name", "detail": "What to do", "duration": 300, "dish": "Dish 1 short name"},
-    {"time": 300, "title": "Next step", "detail": "Instructions", "duration": 180, "dish": "Dish 2 short name"}
+    {"time": 0, "title": "Step name", "detail": "What to do", "duration": 300, "dish": "Dish 1 short name"${twoScheduledAtExample}},
+    {"time": 300, "title": "Next step", "detail": "Instructions", "duration": 180, "dish": "Dish 2 short name"${twoScheduledAtExample}}
   ]
 }
 
@@ -3078,6 +3218,30 @@ STYLE: Write like Gordon Ramsay coaching someone in his kitchen:
       return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
     }
 
+    // Returns minutes late (positive = behind schedule) for a step's scheduledAt vs now.
+    // Only meaningful when the step is the active/current step.
+    function getLateMinutes(scheduledAt) {
+      if (!scheduledAt) return 0;
+      const [sh, sm] = scheduledAt.split(':').map(Number);
+      const now = new Date();
+      const scheduledMs = new Date(now.getFullYear(), now.getMonth(), now.getDate(), sh, sm, 0, 0).getTime();
+      const diffMs = Date.now() - scheduledMs;
+      return Math.floor(diffMs / 60000); // positive = late, negative = early/on time
+    }
+
+    function getLateBadgeHtml(scheduledAt, isCurrentStep) {
+      const lateMinutes = getLateMinutes(scheduledAt);
+      if (lateMinutes <= 0) return '';
+      const cls = lateMinutes >= 5 ? 'late-red' : 'late-amber';
+      return `<span class="late-badge ${cls}">${lateMinutes} min late</span>`;
+    }
+
+    function getScheduledAtHtml(scheduledAt, isCurrentStep) {
+      if (!scheduledAt) return '';
+      const lateBadge = isCurrentStep ? getLateBadgeHtml(scheduledAt, true) : '';
+      return `<div class="scheduled-at">⏰ Start at ${scheduledAt}${lateBadge}</div>`;
+    }
+
     function getElapsedSeconds() {
       return Math.floor((Date.now() - startTime) / 1000);
     }
@@ -3133,6 +3297,7 @@ STYLE: Write like Gordon Ramsay coaching someone in his kitchen:
         <h2>${current.title}</h2>
         <p>${current.detail}</p>
         ${current.dish ? getDishBadgeHtml(current.dish) : ''}
+        ${getScheduledAtHtml(current.scheduledAt, true)}
         ${showFooter ? `<div class="step-footer">
           ${hasTimeRemaining ? `<div class="duration">⏱ ${formatTime(Math.max(0, remaining))} remaining</div>` : ''}
           ${hasNextStep ? `<div class="step-actions"><button class="done-btn" onclick="skipCurrentStep()">Next →</button></div>` : ''}
@@ -3153,6 +3318,7 @@ STYLE: Write like Gordon Ramsay coaching someone in his kitchen:
               <div class="title">${step.title}</div>
               <div class="detail">${shortDetail}</div>
               ${step.dish ? getDishBadgeHtml(step.dish) : ''}
+              ${getScheduledAtHtml(step.scheduledAt, false)}
             </div>
             <div class="countdown">${formatTime(countdown)}</div>
           </div>
@@ -3169,9 +3335,11 @@ STYLE: Write like Gordon Ramsay coaching someone in his kitchen:
     function renderTimeline() {
       document.getElementById('timeline').innerHTML = steps.map((step, i) => {
         const dishClass = step.dish ? getDishClass(step.dish) + '-step' : '';
+        // Show scheduledAt as the primary time if set, else fall back to computed clock time
+        const timeDisplay = step.scheduledAt || formatClockTime(step.time);
         return `
           <div class="timeline-step ${dishClass}" data-index="${i}">
-            <div class="timeline-time">${formatClockTime(step.time)}</div>
+            <div class="timeline-time">${timeDisplay}</div>
             <div class="timeline-content">
               <div class="timeline-title">${step.title}</div>
               <div class="timeline-detail">${step.detail}</div>
