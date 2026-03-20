@@ -1,3 +1,6 @@
 
 # Recipe photo inbox (local only)
 inbox/
+
+# Git worktrees
+.worktrees/
