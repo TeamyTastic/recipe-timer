@@ -1799,7 +1799,7 @@ E.g. Roasted broccoli with lemon"></textarea>
       <!-- Ready by time (optional) -->
       <div class="ready-by-row">
         <label for="ready-by-time">⏰ Ready by</label>
-        <input type="time" id="ready-by-time" placeholder="--:--">
+        <input type="time" id="ready-by-time">
         <span class="ready-by-hint">Optional</span>
       </div>
 
@@ -1872,6 +1872,10 @@ E.g. Roasted broccoli with lemon"></textarea>
   </div>
 
   <script>
+    function escapeHtml(str) {
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+
     // Safe localStorage wrapper (iOS Safari blocks on file:// URLs)
     const storage = {
       get: (key) => { try { return localStorage.getItem(key); } catch(e) { return null; } },
@@ -2114,8 +2118,8 @@ E.g. Roasted broccoli with lemon"></textarea>
         grid.innerHTML = libraryRecipes.map((recipe, i) => `
           <div class="library-item" onclick="selectLibraryRecipe(${i})">
             <div>
-              <div class="title">${recipe.title}</div>
-              ${recipe.tags ? `<div class="tags">${recipe.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>` : ''}
+              <div class="title">${escapeHtml(recipe.title)}</div>
+              ${recipe.tags ? `<div class="tags">${recipe.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
             </div>
             <span class="arrow">→</span>
           </div>
@@ -2123,12 +2127,8 @@ E.g. Roasted broccoli with lemon"></textarea>
 
       } catch (err) {
         console.error('Library load error:', err);
-        grid.innerHTML = `
-          <div class="library-empty">
-            <p>Could not load recipe library.</p>
-            <p style="font-size: 0.9em; color: var(--terracotta);">${err.message}</p>
-          </div>
-        `;
+        grid.innerHTML = '<div class="library-empty"><p>Could not load recipe library.</p><p class="library-error-detail"></p></div>';
+        grid.querySelector('.library-error-detail').textContent = err.message;
       }
     }
 
@@ -2593,7 +2593,7 @@ E.g. Roasted broccoli with lemon"></textarea>
       list.innerHTML = recipes.slice(0, 5).map((r, i) => `
         <div class="cached-item" onclick="loadCached(${i})">
           <div>
-            <div class="title">${r.title}</div>
+            <div class="title">${escapeHtml(r.title)}</div>
             <div class="meta">${r.steps.length} steps</div>
           </div>
           <span class="arrow">→</span>
@@ -3294,8 +3294,8 @@ STYLE: Write like Gordon Ramsay coaching someone in his kitchen:
       const showFooter = hasTimeRemaining || hasNextStep;
 
       document.getElementById('current-step').innerHTML = `
-        <h2>${current.title}</h2>
-        <p>${current.detail}</p>
+        <h2>${escapeHtml(current.title)}</h2>
+        <p>${escapeHtml(current.detail)}</p>
         ${current.dish ? getDishBadgeHtml(current.dish) : ''}
         ${getScheduledAtHtml(current.scheduledAt, true)}
         ${showFooter ? `<div class="step-footer">
