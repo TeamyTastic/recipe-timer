@@ -981,6 +981,7 @@
     <button id="new-btn" onclick="newGuide()" title="New Guide">✕</button>
   </div>
 
+  <script src="./recipe-utils.js"></script>
   <script>
     // Safe localStorage wrapper (iOS Safari blocks on file:// URLs)
     const storage = {
@@ -997,6 +998,12 @@
     let intervalId = null;
     let currentInputMode = 'url';
     let selectedPhoto = null;
+    let sessionClaudeApiKey = '';
+    const {
+      buildGuideSessionState,
+      cacheRecentItems,
+      repairJson: repairJsonFromUtils
+    } = window.RecipeTimerUtils;
 
     // ==================== INIT ====================
     function maskApiKey(key) {
@@ -1004,16 +1011,63 @@
       return key.slice(0, 4) + '••••••••' + key.slice(-4);
     }
 
-    window.onload = function() {
-      const savedKey = storage.get('claudeApiKey');
-      if (savedKey) {
-        const input = document.getElementById('api-key');
-        input.value = maskApiKey(savedKey);
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function getClaudeApiKeyFromInput() {
+      const input = document.getElementById('api-key');
+      const typed = input.value.trim();
+      if (typed && !typed.includes('••••')) {
+        sessionClaudeApiKey = typed;
+        input.value = maskApiKey(typed);
         input.readOnly = true;
         input.style.color = '#888';
         collapseApiKey();
       }
+      return sessionClaudeApiKey;
+    }
 
+    function validateGeneratedGuide(guide) {
+      if (!guide || typeof guide !== 'object') {
+        throw new Error('Guide response was not an object');
+      }
+      const title = String(guide.title || '').trim();
+      const stepsValue = Array.isArray(guide.steps) ? guide.steps : [];
+      if (!title) throw new Error('Guide title is missing');
+      if (!stepsValue.length) throw new Error('Guide has no steps');
+
+      const steps = stepsValue.map((step, index) => {
+        if (!step || typeof step !== 'object') {
+          throw new Error(`Step ${index + 1} is invalid`);
+        }
+        const stepTitle = String(step.title || '').trim();
+        const detail = String(step.detail || '').trim();
+        const explainQuery = String(step.explainQuery || '').trim();
+        if (!stepTitle || !detail) {
+          throw new Error(`Step ${index + 1} is missing title or detail`);
+        }
+        return {
+          number: index + 1,
+          title: stepTitle.slice(0, 120),
+          detail: detail.slice(0, 1000),
+          explainQuery: explainQuery.slice(0, 200),
+        };
+      });
+
+      return {
+        title: title.slice(0, 200),
+        totalSteps: steps.length,
+        steps,
+      };
+    }
+
+    window.onload = function() {
       // Check for active guide
       const activeGuide = storage.get('activeGuide');
       if (activeGuide) {
@@ -1031,8 +1085,8 @@
     };
 
     function forgetKey() {
-      if (confirm('Remove saved API key?')) {
-        storage.remove('claudeApiKey');
+      if (confirm('Forget the API key for this tab?')) {
+        sessionClaudeApiKey = '';
         const input = document.getElementById('api-key');
         input.value = '';
         input.readOnly = false;
@@ -1121,8 +1175,8 @@
       list.innerHTML = guides.slice(0, 5).map((g, i) => `
         <div class="cached-item" onclick="loadCached(${i})">
           <div>
-            <div class="title">${g.title}</div>
-            <div class="meta">${g.steps.length} steps</div>
+            <div class="title">${escapeHtml(g.title)}</div>
+            <div class="meta">${Number.isFinite(g.steps?.length) ? g.steps.length : 0} steps</div>
           </div>
           <span class="arrow">→</span>
         </div>
@@ -1143,13 +1197,9 @@
     }
 
     async function generateGuide() {
-      const inputValue = document.getElementById('api-key').value.trim();
       const urlInput = document.getElementById('url-input-field').value.trim();
       const errorEl = document.getElementById('error-msg');
-
-      let apiKey = storage.get('claudeApiKey');
-      const isNewKey = !apiKey && inputValue && !inputValue.includes('••••');
-      if (isNewKey) apiKey = inputValue;
+      const apiKey = getClaudeApiKeyFromInput();
 
       if (!apiKey) {
         errorEl.textContent = 'Please enter your Claude API key';
@@ -1165,15 +1215,6 @@
       }
 
       errorEl.textContent = '';
-
-      if (isNewKey) {
-        storage.set('claudeApiKey', apiKey);
-        const input = document.getElementById('api-key');
-        input.value = maskApiKey(apiKey);
-        input.readOnly = true;
-        input.style.color = '#888';
-        collapseApiKey();
-      }
 
       // Show loading
       document.getElementById('setup-section').style.display = 'none';
@@ -1293,7 +1334,7 @@ Rules:
 
         // Repair JSON
         jsonStr = repairJson(jsonStr);
-        const guide = JSON.parse(jsonStr);
+        const guide = validateGeneratedGuide(JSON.parse(jsonStr));
 
         steps = guide.steps;
         guideTitle = guide.title;
@@ -1313,65 +1354,21 @@ Rules:
     }
 
     function repairJson(str) {
-      str = str.replace(/,\s*"[^"]*$/, '');
-      str = str.replace(/:\s*"[^"]*$/, ': ""');
-      str = str.replace(/,\s*([\]}])/g, '$1');
-      str = str.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":');
-
-      let braces = 0, brackets = 0, inString = false, escaped = false, jsonEndIdx = -1;
-      for (let i = 0; i < str.length; i++) {
-        const char = str[i];
-        if (escaped) { escaped = false; continue; }
-        if (char === '\\') { escaped = true; continue; }
-        if (char === '"') { inString = !inString; continue; }
-        if (inString) continue;
-        if (char === '{') braces++;
-        if (char === '}') braces--;
-        if (char === '[') brackets++;
-        if (char === ']') brackets--;
-        if (braces === 0 && brackets === 0 && i > 0) {
-          jsonEndIdx = i + 1;
-          break;
-        }
-      }
-
-      if (jsonEndIdx > 0) {
-        str = str.slice(0, jsonEndIdx);
-      } else {
-        braces = 0; brackets = 0; inString = false; escaped = false;
-        for (let i = 0; i < str.length; i++) {
-          const char = str[i];
-          if (escaped) { escaped = false; continue; }
-          if (char === '\\') { escaped = true; continue; }
-          if (char === '"') { inString = !inString; continue; }
-          if (inString) continue;
-          if (char === '{') braces++;
-          if (char === '}') braces--;
-          if (char === '[') brackets++;
-          if (char === ']') brackets--;
-        }
-        while (brackets > 0) { str += ']'; brackets--; }
-        while (braces > 0) { str += '}'; braces--; }
-      }
-
-      return str;
+      return repairJsonFromUtils(str);
     }
 
     function cacheGuide(guide) {
-      let cached = JSON.parse(storage.get('cachedGuides') || '[]');
-      cached = cached.filter(g => g.title !== guide.title);
-      cached.unshift(guide);
-      cached = cached.slice(0, 10);
-      storage.set('cachedGuides', JSON.stringify(cached));
+      const cached = JSON.parse(storage.get('cachedGuides') || '[]');
+      storage.set('cachedGuides', JSON.stringify(cacheRecentItems(cached, guide)));
     }
 
     function saveActiveGuide() {
-      storage.set('activeGuide', JSON.stringify({
+      storage.set('activeGuide', JSON.stringify(buildGuideSessionState({
         title: guideTitle,
         steps,
         currentStep: currentStepIndex,
-        completedSteps: Array.from(completedSteps)
-      }));
+        completedSteps
+      })));
     }
 
     // ==================== GUIDE DISPLAY ====================
@@ -1407,8 +1404,8 @@ Rules:
           <div class="step-list-item ${state}">
             <div class="step-number">${completedSteps.has(i) ? '✓' : i + 1}</div>
             <div class="step-content">
-              <div class="step-title">${step.title}</div>
-              <div class="step-detail">${step.detail}</div>
+              <div class="step-title">${escapeHtml(step.title)}</div>
+              <div class="step-detail">${escapeHtml(step.detail)}</div>
             </div>
           </div>
         `;
@@ -1424,8 +1421,8 @@ Rules:
 
       document.getElementById('current-step').innerHTML = `
         <span class="step-badge">STEP ${currentStepIndex + 1}</span>
-        <h2>${step.title}</h2>
-        <p>${step.detail}</p>
+        <h2>${escapeHtml(step.title)}</h2>
+        <p>${escapeHtml(step.detail)}</p>
         <div class="step-actions">
           <button class="btn-explain" onclick="explainStep()">
             <span>🔍</span> Explain

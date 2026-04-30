@@ -1,0 +1,8 @@
+{
+  "name": "recipe-timer",
+  "private": true,
+  "scripts": {
+    "test": "node --test",
+    "scan:secrets": "node --test tests/secret-scan.test.js"
+  }
+}

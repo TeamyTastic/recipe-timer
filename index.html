@@ -1871,6 +1871,7 @@ E.g. Roasted broccoli with lemon"></textarea>
     <button id="new-btn" onclick="newRecipe()" title="New Recipe" aria-label="New Recipe">✕</button>
   </div>
 
+  <script src="./recipe-utils.js"></script>
   <script>
     function escapeHtml(str) {
       return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
@@ -1907,6 +1908,21 @@ E.g. Roasted broccoli with lemon"></textarea>
     const RECIPES_GIST_API = `https://api.github.com/gists/${RECIPES_GIST_ID}`;
     let lastRecipeSource = null; // 'typed', 'photo', or 'library'
     let lastRawRecipe = null; // The original input text
+    const {
+      applyBackupImport,
+      buildDishColorMap: buildDishColorMapForSteps,
+      detectUrl,
+      extractJsonLdRecipe: extractJsonLdRecipeFromHtml,
+      fetchWithCorsProxy: fetchWithCorsProxyViaUtils,
+      formatIsoDuration: formatIsoDurationFromUtils,
+      getCurrentStepIndex: getCurrentStepIndexFromUtils,
+      getLateMinutes: getLateMinutesFromUtils,
+      isSafeUrl: isSafeUrlFromUtils,
+      repairJson: repairJsonFromUtils,
+      validateGeneratedRecipe,
+    } = window.RecipeTimerUtils;
+    let sessionClaudeApiKey = '';
+    let sessionGitHubToken = '';
 
     // Audio beep
     let lastBeepIndex = -1;
@@ -1971,17 +1987,34 @@ E.g. Roasted broccoli with lemon"></textarea>
       return key.slice(0, 4) + '••••••••' + key.slice(-4);
     }
 
-    window.onload = function() {
-      // Check for saved Claude API key
-      const savedKey = storage.get('claudeApiKey');
-      if (savedKey) {
-        const input = document.getElementById('api-key');
-        input.value = maskApiKey(savedKey);
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function getClaudeApiKeyFromInput() {
+      const input = document.getElementById('api-key');
+      const typed = input.value.trim();
+      if (typed && !typed.includes('••••')) {
+        sessionClaudeApiKey = typed;
+        input.value = maskApiKey(typed);
         input.readOnly = true;
         input.style.color = '#888';
         collapseApiKey();
       }
+      return sessionClaudeApiKey;
+    }
 
+    function setStatusMessage(el, message, isError = false) {
+      el.textContent = message;
+      el.style.color = isError ? 'var(--terracotta)' : '';
+    }
+
+    window.onload = function() {
       // Check for active recipe (in-progress cooking)
       const activeRecipe = storage.get('activeRecipe');
       if (activeRecipe) {
@@ -2018,8 +2051,8 @@ E.g. Roasted broccoli with lemon"></textarea>
     }
 
     function forgetKey() {
-      if (confirm('Remove saved Claude API key? You\'ll need to enter it again.')) {
-        storage.remove('claudeApiKey');
+      if (confirm('Forget the Claude API key for this tab? You\'ll need to enter it again.')) {
+        sessionClaudeApiKey = '';
         const input = document.getElementById('api-key');
         input.value = '';
         input.readOnly = false;
@@ -2152,20 +2185,21 @@ E.g. Roasted broccoli with lemon"></textarea>
       const statusEl = document.getElementById('save-status');
       const saveBtn = document.getElementById('save-to-library-btn');
 
-      // Check for GitHub token
-      let ghToken = storage.get('githubGistToken');
+      // Check for GitHub token in this tab only
+      let ghToken = sessionGitHubToken;
       if (!ghToken) {
-        // Prompt for token (one-time setup)
+        // Prompt for token for this browser tab only
         ghToken = prompt(
-          'One-time setup: Paste a GitHub Personal Access Token (with "gist" scope).\n\n' +
+          'Paste a GitHub Personal Access Token (with "gist" scope) for this tab.\n\n' +
           'Create one at: github.com/settings/tokens → Generate new token → Select "gist" scope\n\n' +
-          'This lets the app save recipes directly to your library.'
+          'This app will keep the token only in memory and forget it when you close or reload the page.'
         );
         if (!ghToken) {
-          statusEl.innerHTML = '<small>Cancelled. Need a GitHub token to auto-save.</small>';
+          setStatusMessage(statusEl, 'Cancelled. Need a GitHub token to save to the library.', true);
           return;
         }
-        storage.set('githubGistToken', ghToken);
+        sessionGitHubToken = ghToken.trim();
+        ghToken = sessionGitHubToken;
       }
 
       // Generate a slug from the title
@@ -2186,7 +2220,7 @@ E.g. Roasted broccoli with lemon"></textarea>
 
       saveBtn.disabled = true;
       saveBtn.textContent = '💾 Saving...';
-      statusEl.innerHTML = '';
+      setStatusMessage(statusEl, '');
 
       try {
         // Fetch current gist content
@@ -2201,7 +2235,7 @@ E.g. Roasted broccoli with lemon"></textarea>
 
         // Check for duplicate
         if (library.recipes.some(r => r.title === newRecipe.title)) {
-          statusEl.innerHTML = '⚠️ Recipe already in library!';
+          setStatusMessage(statusEl, 'Recipe already in library!', true);
           saveBtn.disabled = false;
           saveBtn.textContent = '📚 Save to Library';
           return;
@@ -2226,7 +2260,7 @@ E.g. Roasted broccoli with lemon"></textarea>
         if (!updateResp.ok) throw new Error('Could not update gist');
 
         // Success!
-        statusEl.innerHTML = '✅ Saved to library!';
+        setStatusMessage(statusEl, 'Saved to library!');
         saveBtn.textContent = '✓ Saved';
         saveBtn.style.background = 'var(--olive)';
 
@@ -2235,7 +2269,8 @@ E.g. Roasted broccoli with lemon"></textarea>
 
       } catch (err) {
         console.error('Save error:', err);
-        statusEl.innerHTML = `❌ ${err.message}<br><small>Token may be invalid. <a href="#" onclick="storage.remove('githubGistToken'); location.reload();">Reset token</a></small>`;
+        sessionGitHubToken = '';
+        setStatusMessage(statusEl, `Save failed: ${err.message}. Token cleared for this tab.`, true);
         saveBtn.disabled = false;
         saveBtn.textContent = '📚 Save to Library';
       }
@@ -2294,25 +2329,8 @@ E.g. Roasted broccoli with lemon"></textarea>
     }
 
     // ==================== URL DETECTION & FETCHING ====================
-    const URL_REGEX = /https?:\/\/[^\s<>"{}|\\^`\[\]]+/i;
-
-    function detectUrl(text) {
-      const match = text.trim().match(URL_REGEX);
-      if (!match) return null;
-      // Strip trailing punctuation that's likely not part of the URL
-      return match[0].replace(/[.,;:!?)]+$/, '');
-    }
-
-    /** Reject private/loopback URLs to prevent SSRF through CORS proxies */
     function isSafeUrl(url) {
-      try {
-        const parsed = new URL(url);
-        if (!['http:', 'https:'].includes(parsed.protocol)) return false;
-        const h = parsed.hostname.toLowerCase();
-        if (/^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|169\.254\.|0\.)/.test(h)) return false;
-        if (h === '[::1]' || h === '0.0.0.0') return false;
-        return true;
-      } catch { return false; }
+      return isSafeUrlFromUtils(url);
     }
 
     // Show/hide URL detection indicator as user types
@@ -2332,27 +2350,7 @@ E.g. Roasted broccoli with lemon"></textarea>
      * Tries multiple proxies in sequence until one works.
      */
     async function fetchWithCorsProxy(url) {
-      const proxies = [
-        { name: 'allorigins', url: `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, extract: (r) => r.json().then(d => d.contents) },
-        { name: 'corsproxy', url: `https://corsproxy.io/?url=${encodeURIComponent(url)}`, extract: (r) => r.text() },
-      ];
-
-      for (const proxy of proxies) {
-        try {
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
-
-          const response = await fetch(proxy.url, { signal: controller.signal });
-
-          if (!response.ok) { clearTimeout(timeout); continue; }
-          const html = await proxy.extract(response);
-          clearTimeout(timeout);
-          if (html && html.length > 200) return html;
-        } catch (e) {
-          continue;
-        }
-      }
-      throw new Error('All CORS proxies failed. Try pasting the recipe text directly.');
+      return fetchWithCorsProxyViaUtils(url);
     }
 
     /**
@@ -2390,39 +2388,7 @@ E.g. Roasted broccoli with lemon"></textarea>
     }
 
     function extractJsonLdRecipe(html) {
-      // Find all JSON-LD script tags
-      const jsonLdRegex = /<script[^>]*type\s*=\s*["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
-      let match;
-
-      while ((match = jsonLdRegex.exec(html)) !== null) {
-        try {
-          let parsed = JSON.parse(match[1]);
-
-          // Handle @graph arrays (common in WordPress/Yoast)
-          if (parsed['@graph']) {
-            parsed = parsed['@graph'];
-          }
-
-          // Handle arrays
-          if (Array.isArray(parsed)) {
-            const recipe = parsed.find(item =>
-              item['@type'] === 'Recipe' ||
-              (Array.isArray(item['@type']) && item['@type'].includes('Recipe'))
-            );
-            if (recipe) return recipe;
-          }
-
-          // Direct Recipe object
-          if (parsed['@type'] === 'Recipe' ||
-              (Array.isArray(parsed['@type']) && parsed['@type'].includes('Recipe'))) {
-            return parsed;
-          }
-        } catch (e) {
-          // Invalid JSON-LD, try next
-          continue;
-        }
-      }
-      return null;
+      return extractJsonLdRecipeFromHtml(html);
     }
 
     function formatSchemaRecipe(recipe) {
@@ -2481,15 +2447,7 @@ E.g. Roasted broccoli with lemon"></textarea>
     }
 
     function formatIsoDuration(iso) {
-      // Convert PT30M, PT1H30M etc to readable format
-      if (!iso) return '';
-      const match = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-      if (!match) return iso;
-      const parts = [];
-      if (match[1]) parts.push(`${match[1]}h`);
-      if (match[2]) parts.push(`${match[2]}m`);
-      if (match[3]) parts.push(`${match[3]}s`);
-      return parts.join(' ') || iso;
+      return formatIsoDurationFromUtils(iso);
     }
 
     function extractReadableText(html) {
@@ -2521,64 +2479,7 @@ E.g. Roasted broccoli with lemon"></textarea>
     // ==================== JSON UTILITIES ====================
     // Repair malformed JSON (common with LLM responses)
     function repairJson(str) {
-      // Remove trailing incomplete strings (cut off mid-string)
-      str = str.replace(/,\s*"[^"]*$/, '');  // Remove trailing incomplete key
-      str = str.replace(/:\s*"[^"]*$/, ': ""');  // Complete incomplete string value
-
-      // Fix trailing commas before ] or }
-      str = str.replace(/,\s*([\]}])/g, '$1');
-
-      // Quote unquoted property names (e.g., {title: "x"} → {"title": "x"})
-      str = str.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":');
-
-      // Convert single quotes to double quotes for string values
-      str = str.replace(/:\s*'([^']*)'/g, ': "$1"');
-
-      // Find where JSON properly ends (when brackets/braces return to 0)
-      let braces = 0, brackets = 0;
-      let inString = false;
-      let escaped = false;
-      let jsonEndIdx = -1;
-
-      for (let i = 0; i < str.length; i++) {
-        const char = str[i];
-        if (escaped) { escaped = false; continue; }
-        if (char === '\\') { escaped = true; continue; }
-        if (char === '"') { inString = !inString; continue; }
-        if (inString) continue;
-
-        if (char === '{') braces++;
-        if (char === '}') braces--;
-        if (char === '[') brackets++;
-        if (char === ']') brackets--;
-
-        if (braces === 0 && brackets === 0 && i > 0) {
-          jsonEndIdx = i + 1;
-          break;
-        }
-      }
-
-      if (jsonEndIdx > 0) {
-        str = str.slice(0, jsonEndIdx);
-      } else {
-        // JSON is truncated — add missing closers
-        braces = 0; brackets = 0; inString = false; escaped = false;
-        for (let i = 0; i < str.length; i++) {
-          const char = str[i];
-          if (escaped) { escaped = false; continue; }
-          if (char === '\\') { escaped = true; continue; }
-          if (char === '"') { inString = !inString; continue; }
-          if (inString) continue;
-          if (char === '{') braces++;
-          if (char === '}') braces--;
-          if (char === '[') brackets++;
-          if (char === ']') brackets--;
-        }
-        while (brackets > 0) { str += ']'; brackets--; }
-        while (braces > 0) { str += '}'; braces--; }
-      }
-
-      return str;
+      return repairJsonFromUtils(str);
     }
 
     // ==================== RECIPE GENERATION ====================
@@ -2618,13 +2519,7 @@ E.g. Roasted broccoli with lemon"></textarea>
       const inputValue = document.getElementById('api-key').value.trim();
       const errorEl = document.getElementById('error-msg');
 
-      // Use saved key from localStorage, or new key from input
-      let apiKey = storage.get('claudeApiKey');
-      const isNewKey = !apiKey && inputValue && !inputValue.includes('••••');
-
-      if (isNewKey) {
-        apiKey = inputValue;
-      }
+      let apiKey = getClaudeApiKeyFromInput();
 
       if (!apiKey) {
         errorEl.textContent = 'Please enter your Claude API key';
@@ -2643,14 +2538,6 @@ E.g. Roasted broccoli with lemon"></textarea>
           return;
         }
         errorEl.textContent = '';
-        if (isNewKey) {
-          storage.set('claudeApiKey', apiKey);
-          const input = document.getElementById('api-key');
-          input.value = maskApiKey(apiKey);
-          input.readOnly = true;
-          input.style.color = '#888';
-          collapseApiKey();
-        }
         document.getElementById('setup-section').style.display = 'none';
         document.getElementById('loading-section').style.display = 'block';
         document.getElementById('loading-text').textContent = 'Planning your two-dish meal...';
@@ -2670,16 +2557,6 @@ E.g. Roasted broccoli with lemon"></textarea>
       }
 
       errorEl.textContent = '';
-
-      // Save new API key to localStorage
-      if (isNewKey) {
-        storage.set('claudeApiKey', apiKey);
-        const input = document.getElementById('api-key');
-        input.value = maskApiKey(apiKey);
-        input.readOnly = true;
-        input.style.color = '#888';
-        collapseApiKey();
-      }
 
       // Show loading
       document.getElementById('setup-section').style.display = 'none';
@@ -2810,7 +2687,7 @@ STYLE: Write like Gordon Ramsay coaching someone in his kitchen:
         jsonStr = jsonStr.slice(startIdx);
 
         jsonStr = repairJson(jsonStr);
-        const recipe = JSON.parse(jsonStr);
+        const recipe = validateGeneratedRecipe(JSON.parse(jsonStr));
         steps = recipe.steps;
         recipeTitle = recipe.title;
 
@@ -2945,7 +2822,7 @@ STYLE: Write like Gordon Ramsay coaching someone in his kitchen:
         const startIdx = jsonStr.indexOf('{');
         if (startIdx === -1) throw new Error('No JSON found in response');
         jsonStr = repairJson(jsonStr.slice(startIdx));
-        const recipe = JSON.parse(jsonStr);
+        const recipe = validateGeneratedRecipe(JSON.parse(jsonStr), { requireDish: true });
 
         // Derive dish labels from the first two unique dish values
         const dishValues = [...new Set(recipe.steps.map(s => s.dish).filter(Boolean))];
@@ -3027,28 +2904,19 @@ STYLE: Write like Gordon Ramsay coaching someone in his kitchen:
             throw new Error('Invalid backup file — no recipe data found');
           }
 
-          // Restore cached recipes (merge, deduplicate by title)
-          let restoredCount = 0;
-          if (backup.cachedRecipes && backup.cachedRecipes.length > 0) {
-            let existing = JSON.parse(storage.get('cachedRecipes') || '[]');
-            for (const recipe of backup.cachedRecipes) {
-              if (!existing.some(r => r.title === recipe.title)) {
-                existing.push(recipe);
-                restoredCount++;
-              }
-            }
-            existing = existing.slice(0, 10);
-            storage.set('cachedRecipes', JSON.stringify(existing));
-          }
-
-          // Restore active recipe if none currently active
-          if (backup.activeRecipe && !storage.get('activeRecipe')) {
-            storage.set('activeRecipe', JSON.stringify(backup.activeRecipe));
+          const importResult = applyBackupImport(
+            JSON.parse(storage.get('cachedRecipes') || '[]'),
+            backup,
+            Boolean(storage.get('activeRecipe'))
+          );
+          storage.set('cachedRecipes', JSON.stringify(importResult.cachedRecipes));
+          if (importResult.activeRecipe) {
+            storage.set('activeRecipe', JSON.stringify(importResult.activeRecipe));
           }
 
           statusEl.style.color = 'var(--olive)';
-          statusEl.textContent = `Restored ${restoredCount} new recipes` +
-            (restoredCount === 0 ? ' (all already present)' : '');
+          statusEl.textContent = `Restored ${importResult.restoredCount} new recipes` +
+            (importResult.restoredCount === 0 ? ' (all already present)' : '');
 
           // Refresh the cached recipes display
           loadCachedRecipes();
@@ -3069,15 +2937,7 @@ STYLE: Write like Gordon Ramsay coaching someone in his kitchen:
     let dishColorMap = {};
 
     function buildDishColorMap() {
-      dishColorMap = {};
-      let count = 0;
-      for (const step of steps) {
-        if (step.dish && !dishColorMap[step.dish]) {
-          dishColorMap[step.dish] = count === 0 ? 'dish-a' : 'dish-b';
-          count++;
-          if (count >= 2) break;
-        }
-      }
+      dishColorMap = buildDishColorMapForSteps(steps);
     }
 
     function getDishClass(dishLabel) {
@@ -3088,7 +2948,7 @@ STYLE: Write like Gordon Ramsay coaching someone in his kitchen:
     function getDishBadgeHtml(dishLabel, extraClass) {
       if (!dishLabel) return '';
       const cls = getDishClass(dishLabel);
-      return `<span class="dish-badge ${cls} ${extraClass || ''}">${dishLabel}</span>`;
+      return `<span class="dish-badge ${cls} ${extraClass || ''}">${escapeHtml(dishLabel)}</span>`;
     }
 
     // ==================== TIMER ====================
@@ -3221,12 +3081,7 @@ STYLE: Write like Gordon Ramsay coaching someone in his kitchen:
     // Returns minutes late (positive = behind schedule) for a step's scheduledAt vs now.
     // Only meaningful when the step is the active/current step.
     function getLateMinutes(scheduledAt) {
-      if (!scheduledAt) return 0;
-      const [sh, sm] = scheduledAt.split(':').map(Number);
-      const now = new Date();
-      const scheduledMs = new Date(now.getFullYear(), now.getMonth(), now.getDate(), sh, sm, 0, 0).getTime();
-      const diffMs = Date.now() - scheduledMs;
-      return Math.floor(diffMs / 60000); // positive = late, negative = early/on time
+      return getLateMinutesFromUtils(scheduledAt);
     }
 
     function getLateBadgeHtml(scheduledAt, isCurrentStep) {
@@ -3239,7 +3094,7 @@ STYLE: Write like Gordon Ramsay coaching someone in his kitchen:
     function getScheduledAtHtml(scheduledAt, isCurrentStep) {
       if (!scheduledAt) return '';
       const lateBadge = isCurrentStep ? getLateBadgeHtml(scheduledAt, true) : '';
-      return `<div class="scheduled-at">⏰ Start at ${scheduledAt}${lateBadge}</div>`;
+      return `<div class="scheduled-at">⏰ Start at ${escapeHtml(scheduledAt)}${lateBadge}</div>`;
     }
 
     function getElapsedSeconds() {
@@ -3247,10 +3102,7 @@ STYLE: Write like Gordon Ramsay coaching someone in his kitchen:
     }
 
     function getCurrentStepIndex(elapsed) {
-      for (let i = steps.length - 1; i >= 0; i--) {
-        if (elapsed >= steps[i].time) return i;
-      }
-      return 0;
+      return getCurrentStepIndexFromUtils(steps, elapsed);
     }
 
     function updateDisplay() {
@@ -3315,8 +3167,8 @@ STYLE: Write like Gordon Ramsay coaching someone in his kitchen:
         return `
           <div class="upcoming-step ${stateClass} ${dishClass}">
             <div class="step-content">
-              <div class="title">${step.title}</div>
-              <div class="detail">${shortDetail}</div>
+              <div class="title">${escapeHtml(step.title)}</div>
+              <div class="detail">${escapeHtml(shortDetail)}</div>
               ${step.dish ? getDishBadgeHtml(step.dish) : ''}
               ${getScheduledAtHtml(step.scheduledAt, false)}
             </div>
@@ -3339,10 +3191,10 @@ STYLE: Write like Gordon Ramsay coaching someone in his kitchen:
         const timeDisplay = step.scheduledAt || formatClockTime(step.time);
         return `
           <div class="timeline-step ${dishClass}" data-index="${i}">
-            <div class="timeline-time">${timeDisplay}</div>
+            <div class="timeline-time">${escapeHtml(timeDisplay)}</div>
             <div class="timeline-content">
-              <div class="timeline-title">${step.title}</div>
-              <div class="timeline-detail">${step.detail}</div>
+              <div class="timeline-title">${escapeHtml(step.title)}</div>
+              <div class="timeline-detail">${escapeHtml(step.detail)}</div>
               ${step.dish ? getDishBadgeHtml(step.dish) : ''}
             </div>
           </div>

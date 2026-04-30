@@ -2,5 +2,9 @@
 # Recipe photo inbox (local only)
 inbox/
 
+# Local/generated state
+.DS_Store
+.herenow/
+
 # Git worktrees
 .worktrees/
