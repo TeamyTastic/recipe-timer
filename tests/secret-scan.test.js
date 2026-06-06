@@ -31,6 +31,16 @@ function* walk(dir) {
   }
 }
 
+test('index.html has exactly one escapeHtml definition', () => {
+  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const matches = html.match(/function escapeHtml\b/g);
+  assert.equal(
+    matches ? matches.length : 0,
+    1,
+    `Expected 1 escapeHtml definition, found ${matches ? matches.length : 0}`
+  );
+});
+
 test('repository does not contain high-confidence secret tokens', () => {
   const findings = [];
 
