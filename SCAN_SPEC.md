@@ -66,6 +66,33 @@ Added by nightly scanner self-improvement pass. One confusion point resolved:
 
 ---
 
+## Improvements (2026-06-06)
+
+Added by nightly scanner self-improvement pass. Two confusion points resolved:
+
+1. **Null-guard universality** — Scanner was uncertain whether null/undefined guarding is a universal requirement for all string utilities in this codebase, or only expected in certain contexts. Rule added (see Sanitization Standards below): null guards are required on every HTML-escaping utility, regardless of call-site context. If a definition lacks a null guard, it is always weaker — even if current callers never pass null.
+
+2. **Canonical sanitization** — Scanner lacked a clear rule about whether multiple `escapeHtml`-style functions could legitimately coexist (e.g. one for attributes, one for text nodes). Rule added: this repo has one DOM context (plain text fields) and therefore one canonical `escapeHtml` is correct. Multiple implementations in the same file scope are always a deduplication target — not a sign of intentional specialization — unless they are named differently (e.g. `escapeAttr` vs `escapeHtml`).
+
+---
+
+## Sanitization Standards
+
+**Rule: null/undefined guards are required on all HTML-escaping utilities.**
+
+`String(value)` coercion (which handles `null` → `"null"` and `undefined` → `"undefined"`) must wrap the input before any `.replace()` chain. A definition that calls `.replace()` directly on the argument will throw if the caller ever passes `null` or `undefined`.
+
+Good: `return String(str).replace(...)`
+Bad:  `return str.replace(...)`
+
+**Threshold for missing null guard**: AUTOFIX 5/5 — add `String()` coercion to the existing definition in-place; do not introduce a second definition.
+
+**Rule: one canonical escapeHtml per file scope.**
+
+This app has one DOM context (plain text content). One implementation is correct. If two functions share the same name but differ only in null-guard presence, the broader one is the canonical form. If two functions have *different* names (e.g. `escapeHtml` vs `escapeForAttribute`), they may coexist — but flag if their implementations diverge unexpectedly.
+
+---
+
 ## Improvements (2026-04-29)
 
 Added by nightly scanner self-improvement pass. Three confusion points resolved:
