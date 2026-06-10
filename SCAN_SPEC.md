@@ -46,6 +46,26 @@ Bad: `` el.innerHTML = `<p>${err.message}</p>` ``
 
 ---
 
+## Improvements (2026-05-22)
+
+Added by nightly scanner self-improvement pass. One confusion point resolved:
+
+1. **Duplicate function definitions** — Scanner was uncertain whether two definitions of `escapeHtml` in `index.html` were intentional (e.g. a polyfill pattern or deliberate override) or a mistake. Rule added: duplicate utility function definitions in the same file scope are always a flag. The later definition silently overrides the earlier one; flag at AUTOFIX 5/5 if the two implementations diverge (different null/undefined handling is sufficient evidence). Keep the definition with the broader null guard; remove the narrower one.
+
+---
+
+## Utility Function Deduplication Policy
+
+**Rule:** Any utility function defined more than once in the same page/file scope is a flag — regardless of intent.
+
+- If both definitions are identical → flag as redundant; remove the duplicate.
+- If the definitions differ (e.g. one guards `null`/`undefined`, the other does not) → flag as a silent-override bug; keep the more defensive implementation and remove the other.
+- Do NOT assume the developer intended the second definition to supersede the first. Silent overrides are a source of security regressions (e.g. a sanitizer with null-handling replaced by one without).
+
+**Threshold**: AUTOFIX 5/5 when the correct definition is unambiguous (broader null guard wins). SKIP (1/5) only if both definitions have identical behaviour and neither is clearly "more correct."
+
+---
+
 ## Improvements (2026-04-29)
 
 Added by nightly scanner self-improvement pass. Three confusion points resolved:
