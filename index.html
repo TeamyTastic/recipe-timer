@@ -1873,10 +1873,6 @@ E.g. Roasted broccoli with lemon"></textarea>
 
   <script src="./recipe-utils.js"></script>
   <script>
-    function escapeHtml(str) {
-      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-    }
-
     // Safe localStorage wrapper (iOS Safari blocks on file:// URLs)
     const storage = {
       get: (key) => { try { return localStorage.getItem(key); } catch(e) { return null; } },
