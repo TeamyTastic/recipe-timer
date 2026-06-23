@@ -93,6 +93,16 @@ This app has one DOM context (plain text content). One implementation is correct
 
 ---
 
+## Improvements (2026-06-23)
+
+Added by nightly scanner self-improvement pass. Two confusion points resolved:
+
+1. **SCAN_SPEC.md rules override generic uncertainty** — When this file already documents a specific threshold for a specific pattern, apply that threshold directly. Do NOT downgrade (e.g. from AUTOFIX 5/5 to GATED 3/5) because of general uncertainty about developer intent. The purpose of SCAN_SPEC.md is to eliminate guessing — if the rule is here, the decision is already made. Hedging against an explicit rule is a scanning error, not caution.
+
+2. **Single-file app architecture is intentional** — `index.html` contains all JS for this app. This is deliberate architecture, not disorganisation. Do NOT flag utility functions as "should be moved to a dedicated JS module" — function placement is not a finding in this repo. The only valid findings about utility functions are: (a) duplicate definitions (already covered above), (b) missing null guards (already covered above), (c) direct security issues in the implementation.
+
+---
+
 ## Improvements (2026-04-29)
 
 Added by nightly scanner self-improvement pass. Three confusion points resolved:
