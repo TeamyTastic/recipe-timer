@@ -103,6 +103,18 @@ Added by nightly scanner self-improvement pass. Two confusion points resolved:
 
 ---
 
+## Improvements (2026-07-07)
+
+Added by nightly scanner self-improvement pass. Three confusion points resolved:
+
+1. **`String(value ?? '')` is the canonical null guard for this app** — The existing Sanitization Standards section uses `String(str)` as its example, which converts `null` → `"null"` and `undefined` → `"undefined"`. This app renders values into DOM text: injecting the literal string "null" is a UX defect, not a safe outcome. The preferred form is `String(value ?? '')`, which produces an empty string for null/undefined. Recognize `String(value ?? '')` as fully compliant with the null-guard requirement — it is strictly preferable. Do NOT flag it as a deviation or express uncertainty about whether the `??` coercion adds value.
+
+2. **Check SCAN_SPEC.md before writing a confusion note** — If your Phase F reflection proposes a SCAN_SPEC.md amendment, first verify the amendment isn't already present. If it is already present (same rule, same threshold), the confusion is a reading failure, not a documentation gap. The correct output in that case is: "No new amendments needed — existing rule at [section] already covers this." Do not repeat existing rules back as proposed additions; that creates noise and obscures genuinely missing coverage.
+
+3. **Confusion about already-settled patterns is a scanning error** — The 2026-06-23 improvements established that SCAN_SPEC.md rules override generic uncertainty. This extends to the reflection phase: if a confusion point would be resolved by reading an existing SCAN_SPEC.md rule, cite the rule and close the confusion. Do not carry it forward as an open question. Open questions in the reflection should only be things genuinely not covered by this file.
+
+---
+
 ## Improvements (2026-04-29)
 
 Added by nightly scanner self-improvement pass. Three confusion points resolved:
