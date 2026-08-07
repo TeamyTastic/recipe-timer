@@ -115,6 +115,71 @@ Added by nightly scanner self-improvement pass. Three confusion points resolved:
 
 ---
 
+## Improvements (2026-08-07)
+
+Added by nightly scanner self-improvement pass. Three confusion points resolved:
+
+1. **CORS proxy URL validation consistency** — Scanner was uncertain whether `isSafeUrl()` is a globally available utility or a file-scoped function, making it hard to judge whether its absence in `guideflow.html` was a security gap or an intentional design difference. Rule added (see CORS Proxy Safety below): any user-supplied URL passed to an external proxy must be validated before encoding. If `index.html` validates the same input pattern with `isSafeUrl()`, the equivalent code path in `guideflow.html` must also validate it. Inconsistency between files is sufficient evidence to flag at REVIEW 2/5 — do NOT assume guideflow.html has a different policy without explicit documentation to that effect.
+
+2. **localStorage JSON.parse error handling** — Scanner was unsure whether `try-catch` around `JSON.parse` and a fallback to default state is universally required or only expected in some contexts. Rule added (see localStorage Error Handling below): every `JSON.parse()` on a localStorage value must be wrapped in `try-catch`. The absence of a try-catch is always a finding at AUTOFIX 4/5 — no ambiguity about developer intent applies here. The correct fallback is to clear the corrupted key and continue with a safe default.
+
+3. **Severity scoring for uncaught parse/runtime errors** — Scanner hedged between Minor and Moderate when scoring an unrecoverable `JSON.parse` throw in `window.onload`. Rule added (see Issue Severity: Parse Errors below): a page-bricking uncaught exception that has no security impact and causes no data loss scores AUTOFIX 4/5 (Minor). It is not Moderate unless there is an active exploit path (e.g. an attacker can force-write the corrupted value to trigger a denial-of-service).
+
+---
+
+## CORS Proxy Safety
+
+**Rule:** Any user-supplied URL passed to an external CORS proxy must be validated before being encoded and fetched.
+
+This app uses `https://api.allorigins.win/raw?url=...` as a CORS proxy. User input passed to this proxy without validation allows SSRF-adjacent abuse (fetching internal URLs, file:// URIs, localhost endpoints) and enables open-redirect-style phishing.
+
+- If a URL validation utility (e.g. `isSafeUrl()`) exists anywhere in the codebase, its use must be consistent across **all** files that accept external URLs from users.
+- If `index.html` calls `isSafeUrl(urlInput)` before the proxy fetch and `guideflow.html` does not, that inconsistency is a finding at **REVIEW 2/5** regardless of whether `guideflow.html` has access to the function in its current scope.
+- Do NOT lower the severity because the proxy is an external service — the risk is what the proxy fetches on the user's behalf, not the proxy vendor itself.
+
+Good: `if (!isSafeUrl(urlInput)) { showError('Invalid URL'); return; }`
+Bad: `const proxyUrl = \`https://api.allorigins.win/raw?url=${encodeURIComponent(urlInput)}\`;` (no prior validation)
+
+---
+
+## localStorage Error Handling
+
+**Rule:** Every `JSON.parse()` call on a localStorage value must be wrapped in `try-catch`.
+
+Corrupt or attacker-written localStorage values will throw a `SyntaxError` from `JSON.parse`. If this throw is uncaught inside `window.onload` or any initialisation path, it permanently bricks the page for that user — the only recovery is manual DevTools intervention to clear storage.
+
+Correct pattern:
+```js
+try {
+  const data = JSON.parse(activeRecipe);
+  // ... use data
+} catch (e) {
+  localStorage.removeItem('activeRecipe');
+  loadCachedRecipes(); // or equivalent safe default
+}
+```
+
+- **Threshold**: AUTOFIX 4/5 — wrapping in try-catch with a safe fallback is unambiguous and has no architectural implications.
+- The fallback must clear the corrupted key (prevent infinite re-throw on next load) and invoke the safe initialisation path (e.g. `loadCachedRecipes()`, empty state, etc.).
+- Apply this rule to every file in the repo, not just `index.html`. `guideflow.html` and any future pages are subject to the same requirement.
+
+---
+
+## Issue Severity: Parse Errors and Runtime Crashes
+
+**Rule:** An uncaught exception that bricks the page but has no security impact and causes no data loss scores **AUTOFIX 4/5 (Minor)** — not Moderate or Critical.
+
+| Condition | Score |
+|-----------|-------|
+| Uncaught parse error → page unusable, no exploit path | AUTOFIX 4/5 |
+| Uncaught parse error + attacker can write the malformed value (stored XSS vector) | Moderate REVIEW 2–3/5 |
+| Uncaught parse error + data permanently lost with no recovery | Moderate REVIEW 2–3/5 |
+| Uncaught parse error + active SSRF / credential leak possible | Critical — flag immediately |
+
+The localStorage `JSON.parse` case in this app scores AUTOFIX 4/5: corrupted storage is a browser-local condition with no remote exploit path. Elevating it to Moderate would dilute the severity of actual security findings.
+
+---
+
 ## Improvements (2026-04-29)
 
 Added by nightly scanner self-improvement pass. Three confusion points resolved:
