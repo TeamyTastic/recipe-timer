@@ -1071,14 +1071,18 @@
       // Check for active guide
       const activeGuide = storage.get('activeGuide');
       if (activeGuide) {
-        const data = JSON.parse(activeGuide);
-        steps = data.steps;
-        guideTitle = data.title;
-        currentStepIndex = data.currentStep || 0;
-        completedSteps = new Set(data.completedSteps || []);
-        document.getElementById('setup-section').style.display = 'none';
-        startGuide();
-        return;
+        try {
+          const data = JSON.parse(activeGuide);
+          steps = data.steps;
+          guideTitle = data.title;
+          currentStepIndex = data.currentStep || 0;
+          completedSteps = new Set(data.completedSteps || []);
+          document.getElementById('setup-section').style.display = 'none';
+          startGuide();
+          return;
+        } catch (e) {
+          storage.remove('activeGuide');
+        }
       }
 
       loadCachedGuides();
