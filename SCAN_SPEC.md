@@ -115,6 +115,18 @@ Added by nightly scanner self-improvement pass. Three confusion points resolved:
 
 ---
 
+## Improvements (2026-08-26)
+
+Added by nightly scanner self-improvement pass. Three confusion points resolved:
+
+1. **Page lockout = CRITICAL, not MODERATE** — A silent crash in `window.onload` (or equivalent top-level handler) that leaves the page blank or non-interactive with no visible error is CRITICAL. "Users can manually recover via DevTools" does not make it MODERATE — that bar requires a recoverable path available to a non-developer end user (e.g. a visible "clear data" button, a reload prompt, or a fallback UI). If the only recovery is opening DevTools and deleting a localStorage key, treat it as CRITICAL.
+
+2. **JSON.parse on localStorage data always requires try/catch** — Any `JSON.parse` call whose input comes from `localStorage.getItem()` is a flag candidate. Corrupted storage (browser crash, storage quota exceeded, prior XSS write) is a realistic failure mode, not a theoretical one. The correct recovery for this app is: `catch` the error, remove the offending key (`localStorage.removeItem(key)`), and fall through to default/empty state. Do NOT flag this as low-priority due to perceived storage reliability — flag it at AUTOFIX 4/5 (or CRITICAL 5/5 if it crashes a top-level load handler).
+
+3. **Severity for JSON.parse crashes: correlate scope, not just recoverability** — When a JSON.parse failure is inside `window.onload` or any handler that initialises the entire page, classify it as CRITICAL (5/5) because the blast radius is total (the page never initialises). When the parse is in a narrower handler (e.g. a single feature's init that gracefully skips on error), AUTOFIX 4/5 is appropriate. The question to ask: "If this throws, does the rest of the page still load?" No → CRITICAL. Yes → AUTOFIX.
+
+---
+
 ## Improvements (2026-04-29)
 
 Added by nightly scanner self-improvement pass. Three confusion points resolved:
