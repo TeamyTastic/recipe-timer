@@ -2014,12 +2014,16 @@ E.g. Roasted broccoli with lemon"></textarea>
       // Check for active recipe (in-progress cooking)
       const activeRecipe = storage.get('activeRecipe');
       if (activeRecipe) {
-        const data = JSON.parse(activeRecipe);
-        pendingResumeData = data;
-        document.getElementById('resume-recipe-name').textContent = `"${data.title}"`;
-        document.getElementById('setup-section').style.display = 'none';
-        document.getElementById('resume-modal').style.display = 'flex';
-        return;
+        try {
+          const data = JSON.parse(activeRecipe);
+          pendingResumeData = data;
+          document.getElementById('resume-recipe-name').textContent = `"${data.title}"`;
+          document.getElementById('setup-section').style.display = 'none';
+          document.getElementById('resume-modal').style.display = 'flex';
+          return;
+        } catch (e) {
+          storage.remove('activeRecipe');
+        }
       }
 
       document.getElementById('setup-section').style.display = 'block';
