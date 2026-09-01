@@ -123,7 +123,7 @@ Added by nightly scanner self-improvement pass. Three confusion points resolved:
 
 2. **localStorage JSON.parse error handling** — Scanner was unsure whether `try-catch` around `JSON.parse` and a fallback to default state is universally required or only expected in some contexts. Rule added (see localStorage Error Handling below): every `JSON.parse()` on a localStorage value must be wrapped in `try-catch`. The absence of a try-catch is always a finding at AUTOFIX 4/5 — no ambiguity about developer intent applies here. The correct fallback is to clear the corrupted key and continue with a safe default.
 
-3. **Severity scoring for uncaught parse/runtime errors** — Scanner hedged between Minor and Moderate when scoring an unrecoverable `JSON.parse` throw in `window.onload`. Rule added (see Issue Severity: Parse Errors below): a page-bricking uncaught exception that has no security impact and causes no data loss scores AUTOFIX 4/5 (Minor). It is not Moderate unless there is an active exploit path (e.g. an attacker can force-write the corrupted value to trigger a denial-of-service).
+3. **Severity scoring for uncaught parse/runtime errors** — Scanner hedged between Minor and Moderate when scoring an unrecoverable `JSON.parse` throw in `window.onload`. Rule added (see Issue Severity: Parse Errors below): a page-bricking uncaught exception that has no security impact and causes no data loss scores AUTOFIX 4/5 (Minor). It is not Moderate unless there is an active exploit path (e.g. an attacker can force-write the corrupted value to trigger a denial-of-service). **Superseded 2026-08-26**: this AUTOFIX 4/5 floor does not apply when the throw is in `window.onload` or any top-level handler that initialises the whole page — see Issue Severity: Parse Errors below, which now scores that specific case CRITICAL.
 
 ---
 
@@ -167,16 +167,22 @@ try {
 
 ## Issue Severity: Parse Errors and Runtime Crashes
 
-**Rule:** An uncaught exception that bricks the page but has no security impact and causes no data loss scores **AUTOFIX 4/5 (Minor)** — not Moderate or Critical.
+**Superseded 2026-08-26** — see rule 3 under Improvements (2026-08-26) below for the current standard. Scope, not just recoverability, decides severity now.
+
+**Rule:** Severity for an uncaught parse/runtime exception depends on blast radius, not just security impact:
+
+- If the throw is inside `window.onload` or any handler that initialises the entire page, the blast radius is total (the page never initialises) — score **CRITICAL (5/5)**, regardless of whether DevTools can manually recover it.
+- If the throw is inside a narrower handler that gracefully skips on error and the rest of the page still loads, score **AUTOFIX 4/5 (Minor)**.
 
 | Condition | Score |
 |-----------|-------|
-| Uncaught parse error → page unusable, no exploit path | AUTOFIX 4/5 |
+| Uncaught parse error in `window.onload` / top-level init → page never loads | CRITICAL 5/5 |
+| Uncaught parse error in a narrower handler → rest of page still loads | AUTOFIX 4/5 |
 | Uncaught parse error + attacker can write the malformed value (stored XSS vector) | Moderate REVIEW 2–3/5 |
 | Uncaught parse error + data permanently lost with no recovery | Moderate REVIEW 2–3/5 |
 | Uncaught parse error + active SSRF / credential leak possible | Critical — flag immediately |
 
-The localStorage `JSON.parse` case in this app scores AUTOFIX 4/5: corrupted storage is a browser-local condition with no remote exploit path. Elevating it to Moderate would dilute the severity of actual security findings.
+The localStorage `JSON.parse` case in this app, when it throws inside `window.onload`, scores CRITICAL 5/5: "can be manually recovered via DevTools" is not a recovery path available to a non-developer end user, so it does not reduce severity below CRITICAL.
 
 ---
 
